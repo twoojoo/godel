@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/binary"
-	"fmt"
 	"os"
 	"strconv"
 )
@@ -35,6 +34,7 @@ type Segment struct {
 	Capped     bool
 }
 
+// NewSegment initializes a segment by opening the file descriptor to the segment log file.
 func NewSegment(baseOffset uint64, maxSize uint32) (*Segment, error) {
 	logFilePath := strconv.Itoa(int(baseOffset)) + ".log"
 	file, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
@@ -56,6 +56,10 @@ func (s *Segment) Close() error {
 	return s.LogFile.Close()
 }
 
+// Append serializes the message and sets its offset based on the segment next
+// available offset. Then it appends it to the segment log.
+//
+// Returns the message offset and an error.
 func (s *Segment) Append(message *Message) (uint64, *appendError) {
 	message.Offset = s.NextOffset
 	blob := message.Serialize()
@@ -72,6 +76,12 @@ func (s *Segment) Append(message *Message) (uint64, *appendError) {
 	return offset, nil
 }
 
+// AppendBlob works like Append, but requires an already serialized message.
+//
+// It sets the message offset in the blob but does not set the offset in the message object,
+// so it must be set manually after the function is executed.
+//
+// Returns the message offset and an error.
 func (s *Segment) AppendBlob(blob []byte) (uint64, *appendError) {
 	if len(blob)+int(s.CurrSize) > int(s.MaxSize) {
 		return 0, &appendError{err: errMaxSizeReached}
@@ -93,12 +103,13 @@ func (s *Segment) AppendBlob(blob []byte) (uint64, *appendError) {
 	return offset, nil
 }
 
+// GetMessage efficiently scans the log file to extract the message at the given offset.
+//
+// Returns a *Message and an error
 func (s *Segment) GetMessage(offset uint64) (*Message, error) {
 	pos := int64(0)
 
 	for {
-		fmt.Println("pointer at", pos)
-
 		messageOffsetBuf := make([]byte, 8)
 		_, err := s.LogFile.ReadAt(messageOffsetBuf, pos+4)
 		if err != nil {
@@ -113,8 +124,6 @@ func (s *Segment) GetMessage(offset uint64) (*Message, error) {
 
 		messageOffset := binary.BigEndian.Uint64(messageOffsetBuf)
 		messageSize := binary.BigEndian.Uint32(messageSizeBuf)
-
-		fmt.Println("now at offset", messageOffset)
 
 		if messageOffset == offset {
 			messageBuf := make([]byte, messageSize)
@@ -131,7 +140,6 @@ func (s *Segment) GetMessage(offset uint64) (*Message, error) {
 			return msg, nil
 		}
 
-		fmt.Println("incrementing pointer by", messageSize)
 		pos += int64(messageSize)
 	}
 }

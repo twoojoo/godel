@@ -23,10 +23,12 @@ func NewPartition(id int, maxSegmentSize uint32) *Partition {
 func (p *Partition) Push(message *Message) (uint64, error) {
 	blob := message.Serialize()
 
+	// check that blob size doesn't exceed max message size
 	if len(blob) > int(p.MaxSegmentSize) {
 		return 0, fmt.Errorf("message.exceeds.max.segment.size")
 	}
 
+	// create new segment if none
 	if len(p.Segments) == 0 {
 		firstSegment, err := NewSegment(0, p.MaxSegmentSize)
 		if err != nil {
@@ -35,8 +37,10 @@ func (p *Partition) Push(message *Message) (uint64, error) {
 		p.Segments = append(p.Segments, firstSegment)
 	}
 
+	// append the message to the log segment
 	offset, appendErr := p.Segments[len(p.Segments)-1].AppendBlob(blob)
 	if appendErr.IsMaxSizeReached() {
+		// if the max size of the segment is reached, create a new one
 		newSegment, err := NewSegment(0, p.MaxSegmentSize)
 		if err != nil {
 			return 0, err
@@ -53,41 +57,41 @@ func (p *Partition) Push(message *Message) (uint64, error) {
 }
 
 func (p *Partition) Consume(offset uint64, callback func(message *Message) error) error {
+	// seatch the segment corresponding to the requested offset
 	segmentIdx := binarySearchSegment(p.Segments, offset)
 
+	// if requested offset is less than first available offset
+	// default to first available offset
 	if segmentIdx == -1 {
-		// lower offset, default to first available segment
 		segmentIdx = 0
 		offset = p.Segments[0].BaseOffset
-	} else if segmentIdx >= len(p.Segments) {
-		// higher offset, must wait till new message is available
 	}
 
-	if len(p.Segments) == 0 || offset > uint64(len(p.Segments)-1) {
-		<-p.newMessageCh
-	}
-
+	// start consume loop
 	for {
-		if segmentIdx > len(p.Segments)-1 {
-			println("waiting for new segment")
+		// if there are no segment, or the requested offset is after the last segment.
+		// then wait for a new message before continuing
+		if len(p.Segments) == 0 || segmentIdx >= len(p.Segments) {
 			<-p.newMessageCh
 			continue
 		}
 
+		// if the requested offset is inferior to the current segment next offset
+		// (aka if the message actually exists) get the message, otherwise just
+		// wait for a new message signal.
 		if offset < p.Segments[segmentIdx].NextOffset {
-			println("getting message at offset", offset)
 			message, err := p.Segments[segmentIdx].GetMessage(offset)
 
 			// last message segment reached and segment capped
+			// increment segmentindex and continue looping
 			if err == io.EOF && p.Segments[segmentIdx].Capped {
-				println("reached EOF and segment Capped")
 				segmentIdx++
 				continue
 			}
 
-			// last message segment reached and segment  not capped
+			// last message segment reached and segment not capped
+			// (just wait for a new message)
 			if err == io.EOF && !p.Segments[segmentIdx].Capped {
-				println("reached EOF and segment NOT Capped")
 				<-p.newMessageCh
 				continue
 			}
@@ -96,11 +100,14 @@ func (p *Partition) Consume(offset uint64, callback func(message *Message) error
 				return err
 			}
 
+			// execute calback on message
 			err = callback(message)
 			if err != nil {
 				return err
 			}
 
+			// everything went right so we
+			// can increment consumer offset
 			offset++
 		} else {
 			<-p.newMessageCh
@@ -108,6 +115,13 @@ func (p *Partition) Consume(offset uint64, callback func(message *Message) error
 	}
 }
 
+// binarySearchSegment search for the segment containing the requested offset.
+//
+// If the segment is found, its index is returned.
+//
+// If the requested offset is inferior to the first available segment, then it returns -1.
+//
+// If it's superior to the maximum available segment, it returns the last segment index + 1.
 func binarySearchSegment(segments []*Segment, offset uint64) int {
 	return bsSegment(segments, offset, 0, len(segments))
 }

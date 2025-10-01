@@ -7,7 +7,6 @@ import (
 )
 
 const errMaxSizeReached = "max.segment.size.reached"
-const errMessageOffsetMismatch = "message.offset.mismatch"
 
 type appendError struct {
 	err string

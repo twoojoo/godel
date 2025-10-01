@@ -79,3 +79,23 @@ func (m *Message) serialize() []byte {
 
 	return blob
 }
+
+func (m *Message) Offset() uint64 {
+	return m.offset
+}
+
+func (m *Message) Key() []byte {
+	return m.key
+}
+
+func (m *Message) KeyStr() string {
+	return string(m.key)
+}
+
+func (m *Message) Payload() []byte {
+	return m.payload
+}
+
+func (m *Message) PayloadStr() string {
+	return string(m.payload)
+}

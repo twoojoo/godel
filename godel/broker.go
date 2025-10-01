@@ -55,6 +55,27 @@ func NewBroker(opts ...*BrokerOptions) (*Broker, error) {
 	}
 }
 
+// loadTopics scans broker path for topics folders and
+// recursively loads eache topic from its own path.
+func (b *Broker) loadTopics() ([]*Topic, error) {
+	topicNames, err := listSubfolders(b.Options.BasePath)
+	if err != nil {
+		return nil, err
+	}
+
+	topics := make([]*Topic, 0, len(topicNames))
+	for i := range topicNames {
+		topic, err := loadTopic(topicNames[i], b.Options)
+		if err != nil {
+			return nil, err
+		}
+
+		topics = append(topics, topic)
+	}
+
+	return topics, nil
+}
+
 func (b *Broker) GetOrCreateTopic(name string, opts ...*TopicOptions) (*Topic, error) {
 	if len(opts) == 0 {
 		opts = append(opts, DefaultTopicOptions())
@@ -87,25 +108,4 @@ func (b *Broker) Produce(topic string, message *Message) (uint64, error) {
 	}
 
 	return 0, errors.New(errTopicNotFound)
-}
-
-// loadTopics scans broker path for topics folders and
-// recursively loads eache topic from its own path.
-func (b *Broker) loadTopics() ([]*Topic, error) {
-	topicNames, err := listSubfolders(b.Options.BasePath)
-	if err != nil {
-		return nil, err
-	}
-
-	topics := make([]*Topic, 0, len(topicNames))
-	for i := range topicNames {
-		topic, err := loadTopic(topicNames[i], b.Options)
-		if err != nil {
-			return nil, err
-		}
-
-		topics = append(topics, topic)
-	}
-
-	return topics, nil
 }

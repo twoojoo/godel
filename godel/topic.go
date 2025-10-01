@@ -176,11 +176,11 @@ func (t *Topic) produce(message *Message) (uint64, error) {
 	return partition.push(message)
 }
 
-func (t *Topic) consume(offset uint64, callback func(message *Message) error) error {
+func (t *Topic) Consume(offset uint64, callback func(message *Message) error) error {
 	// temp consume from first partition only
 	return t.partitions[0].consume(offset, callback)
 }
 
-func (t *Topic) registerConsumer(consumer *TopicConsumer) {
-	t.consumers = append(t.consumers, consumer)
-}
+// func (t *Topic) registerConsumer(consumer *TopicConsumer) {
+// 	t.consumers = append(t.consumers, consumer)
+// }

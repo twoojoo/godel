@@ -3,15 +3,15 @@ package godel
 import "github.com/google/uuid"
 
 type TopicConsumer struct {
-	StopCh     chan struct{}
-	ID         string
-	Partitions []*Partition
+	id         string
+	partitions []*Partition
+	stopCh     chan struct{}
 }
 
 func NewTopicConsumer(partitions []*Partition) *TopicConsumer {
 	return &TopicConsumer{
-		ID:         uuid.NewString(),
-		Partitions: partitions,
+		id:         uuid.NewString(),
+		partitions: partitions,
 	}
 }
 
@@ -19,17 +19,17 @@ func (c *TopicConsumer) Consume(fromBeginning bool, callback func(m *Message) er
 	messageCh := make(chan *Message)
 	errorCh := make(chan error)
 
-	for i := range c.Partitions {
+	for i := range c.partitions {
 		j := i
 		go func() {
 			offset := uint64(0)
 			if fromBeginning {
-				offset = c.Partitions[j].GetBaseOffset()
+				offset = c.partitions[j].GetBaseOffset()
 			} else {
-				offset = c.Partitions[j].GetNextOffset()
+				offset = c.partitions[j].GetNextOffset()
 			}
 
-			err := c.Partitions[j].Consume(offset, func(message *Message) error {
+			err := c.partitions[j].Consume(offset, func(message *Message) error {
 				messageCh <- message
 				return nil
 			})
@@ -49,12 +49,12 @@ func (c *TopicConsumer) Consume(fromBeginning bool, callback func(m *Message) er
 			}
 		case err := <-errorCh:
 			return err
-		case <-c.StopCh:
+		case <-c.stopCh:
 			return nil
 		}
 	}
 }
 
 func (c *TopicConsumer) Stop() {
-	c.StopCh <- struct{}{}
+	c.stopCh <- struct{}{}
 }

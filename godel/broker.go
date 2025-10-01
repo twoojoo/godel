@@ -63,7 +63,7 @@ func (b *Broker) GetOrCreateTopic(name string, opts ...*TopicOptions) (*Topic, e
 	topic, err := newTopic(name, opts[0], b.Options)
 	if err != nil && err.Error() == errTopicAlreadyExists {
 		for i := range b.Topics {
-			if b.Topics[i].Name == name {
+			if b.Topics[i].name == name {
 				return b.Topics[i], nil
 			}
 		}
@@ -81,7 +81,7 @@ func (b *Broker) GetOrCreateTopic(name string, opts ...*TopicOptions) (*Topic, e
 
 func (b *Broker) Produce(topic string, message *Message) (uint64, error) {
 	for i := range b.Topics {
-		if b.Topics[i].Name == topic {
+		if b.Topics[i].name == topic {
 			return b.Topics[i].produce(message)
 		}
 	}

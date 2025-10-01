@@ -6,19 +6,19 @@ import (
 )
 
 type Message struct {
-	Partition uint32
-	Offset    uint64
-	Key       []byte
-	Payload   []byte
-	Timestamp uint64
+	partition uint32
+	offset    uint64
+	key       []byte
+	payload   []byte
+	timestamp uint64
 }
 
 func NewMessage(timestamp uint64, key []byte, payload []byte) *Message {
 	return &Message{
-		Offset:    0,
-		Key:       key,
-		Payload:   payload,
-		Timestamp: timestamp,
+		offset:    0,
+		key:       key,
+		payload:   payload,
+		timestamp: timestamp,
 	}
 }
 
@@ -37,10 +37,10 @@ func DeserializeMessage(b []byte) (*Message, error) {
 	payload := b[24+keyLen : messageSize]
 
 	return &Message{
-		Offset:    offset,
-		Key:       key,
-		Payload:   payload,
-		Timestamp: timestamp,
+		offset:    offset,
+		key:       key,
+		payload:   payload,
+		timestamp: timestamp,
 	}, nil
 }
 
@@ -50,20 +50,20 @@ func (m *Message) Serialize() []byte {
 		8 + // timestamp
 		4 + // key length
 		// 4 + // payload length
-		len([]byte(m.Key)) + // key
-		len(m.Payload)) // payload
+		len([]byte(m.key)) + // key
+		len(m.payload)) // payload
 
 	totalSizeBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(totalSizeBytes, totalSize)
 
 	offsetBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(offsetBytes, m.Offset)
+	binary.BigEndian.PutUint64(offsetBytes, m.offset)
 
 	timestampBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(timestampBytes, m.Timestamp)
+	binary.BigEndian.PutUint64(timestampBytes, m.timestamp)
 
 	keyLenBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(keyLenBytes, uint32(len(m.Key)))
+	binary.BigEndian.PutUint32(keyLenBytes, uint32(len(m.key)))
 
 	// payloadSizeBytes := make([]byte, 4)
 	// binary.BigEndian.PutUint32(payloadSizeBytes, uint32(len(m.Payload)))
@@ -74,8 +74,8 @@ func (m *Message) Serialize() []byte {
 	blob = append(blob, timestampBytes...)
 	blob = append(blob, keyLenBytes...)
 	// blob = append(blob, payloadSizeBytes...)
-	blob = append(blob, m.Key...)
-	blob = append(blob, m.Payload...)
+	blob = append(blob, m.key...)
+	blob = append(blob, m.payload...)
 
 	return blob
 }

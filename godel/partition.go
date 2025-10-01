@@ -12,11 +12,11 @@ const errPartitionAlreadyExists = "partition.already.exists"
 
 type Partition struct {
 	newMessageCh  chan int
-	ID            uint32
-	Segments      []*Segment // guaranteed segments order by offset
-	TopicOptions  *TopicOptions
-	BrokerOptions *BrokerOptions
-	TopicName     string
+	num           uint32
+	segments      []*Segment // guaranteed segments order by offset
+	topicOptions  *TopicOptions
+	brokerOptions *BrokerOptions
+	topicName     string
 }
 
 func newPartition(id uint32, topicName string, topicOptions *TopicOptions, brokerOptions *BrokerOptions) (*Partition, error) {
@@ -36,11 +36,11 @@ func newPartition(id uint32, topicName string, topicOptions *TopicOptions, broke
 	slog.Info("initializing partition", "topic", topicName, "partition", id)
 
 	return &Partition{
-		ID:            id,
+		num:           id,
 		newMessageCh:  make(chan int),
-		TopicName:     topicName,
-		TopicOptions:  topicOptions,
-		BrokerOptions: brokerOptions,
+		topicName:     topicName,
+		topicOptions:  topicOptions,
+		brokerOptions: brokerOptions,
 	}, nil
 }
 
@@ -79,85 +79,85 @@ func loadPartition(id uint32, topicName string, topicOptions *TopicOptions, brok
 	}
 
 	return &Partition{
-		ID:            id,
+		num:           id,
 		newMessageCh:  make(chan int),
-		TopicName:     topicName,
-		TopicOptions:  topicOptions,
-		BrokerOptions: brokerOptions,
-		Segments:      segments,
+		topicName:     topicName,
+		topicOptions:  topicOptions,
+		brokerOptions: brokerOptions,
+		segments:      segments,
 	}, nil
 }
 
 func (p *Partition) GetBaseOffset() uint64 {
-	if len(p.Segments) == 0 {
+	if len(p.segments) == 0 {
 		return 0
 	}
 
-	return p.Segments[0].BaseOffset
+	return p.segments[0].baseOffset
 }
 
 func (p *Partition) GetNextOffset() uint64 {
-	if len(p.Segments) == 0 {
+	if len(p.segments) == 0 {
 		return 1
 	}
 
-	return p.Segments[len(p.Segments)-1].NextOffset
+	return p.segments[len(p.segments)-1].nextOffset
 }
 
 func (p *Partition) push(message *Message) (uint64, error) {
 	blob := message.Serialize()
 
 	// check that blob size doesn't exceed max message size
-	if len(blob) > int(p.TopicOptions.SegmentBytes) {
+	if len(blob) > int(p.topicOptions.SegmentBytes) {
 		return 0, fmt.Errorf("message.exceeds.max.segment.size")
 	}
 
 	// create new segment if none
-	if len(p.Segments) == 0 {
+	if len(p.segments) == 0 {
 		slog.Info("initializing new segment", "base_offset", 0)
 
-		firstSegment, err := newSegment(p.BrokerOptions.BasePath, p.TopicName, p.ID, 0, p.TopicOptions.SegmentBytes)
+		firstSegment, err := newSegment(p.brokerOptions.BasePath, p.topicName, p.num, 0, p.topicOptions.SegmentBytes)
 		if err != nil {
 			return 0, err
 		}
 
-		p.Segments = append(p.Segments, firstSegment)
+		p.segments = append(p.segments, firstSegment)
 	}
 
 	// append the message to the log segment
-	offset, appendErr := p.Segments[len(p.Segments)-1].AppendBlob(blob)
+	offset, appendErr := p.segments[len(p.segments)-1].AppendBlob(blob)
 	if appendErr.IsMaxSizeReached() {
 		// if the max size of the segment is reached, create a new one
 		nextOffset := p.GetNextOffset()
-		newSegment, err := newSegment(p.BrokerOptions.BasePath, p.TopicName, p.ID, nextOffset, p.TopicOptions.SegmentBytes)
+		newSegment, err := newSegment(p.brokerOptions.BasePath, p.topicName, p.num, nextOffset, p.topicOptions.SegmentBytes)
 		if err != nil {
 			return 0, err
 		}
-		p.Segments = append(p.Segments, newSegment)
+		p.segments = append(p.segments, newSegment)
 	} else if appendErr != nil {
 		return 0, appendErr
 	}
 
-	message.Offset = offset
+	message.offset = offset
 	return offset, nil
 }
 
 func (p *Partition) Consume(offset uint64, callback func(message *Message) error) error {
 	// seatch the segment corresponding to the requested offset
-	segmentIdx := binarySearchSegment(p.Segments, offset)
+	segmentIdx := binarySearchSegment(p.segments, offset)
 
 	// if requested offset is less than first available offset
 	// default to first available offset
 	if segmentIdx == -1 {
 		segmentIdx = 0
-		offset = p.Segments[0].BaseOffset
+		offset = p.segments[0].baseOffset
 	}
 
 	// start consume loop
 	for {
 		// if there are no segment, or the requested offset is after the last segment.
 		// then wait for a new message before continuing
-		if len(p.Segments) == 0 || segmentIdx >= len(p.Segments) {
+		if len(p.segments) == 0 || segmentIdx >= len(p.segments) {
 			<-p.newMessageCh
 			continue
 		}
@@ -165,19 +165,19 @@ func (p *Partition) Consume(offset uint64, callback func(message *Message) error
 		// if the requested offset is inferior to the current segment next offset
 		// (aka if the message actually exists) get the message, otherwise just
 		// wait for a new message signal.
-		if offset < p.Segments[segmentIdx].NextOffset {
-			message, err := p.Segments[segmentIdx].GetMessage(offset)
+		if offset < p.segments[segmentIdx].nextOffset {
+			message, err := p.segments[segmentIdx].GetMessage(offset)
 
 			// last message segment reached and segment capped
 			// increment segmentindex and continue looping
-			if err == io.EOF && p.Segments[segmentIdx].Capped {
+			if err == io.EOF && p.segments[segmentIdx].capped {
 				segmentIdx++
 				continue
 			}
 
 			// last message segment reached and segment not capped
 			// (just wait for a new message)
-			if err == io.EOF && !p.Segments[segmentIdx].Capped {
+			if err == io.EOF && !p.segments[segmentIdx].capped {
 				<-p.newMessageCh
 				continue
 			}
@@ -222,17 +222,17 @@ func bsSegment(segments []*Segment, offset uint64, lo, hi int) int {
 	maxSegment := segments[maxIndex]
 
 	// offset is inside this segment
-	if offset >= maxSegment.BaseOffset && offset < maxSegment.NextOffset {
+	if offset >= maxSegment.baseOffset && offset < maxSegment.nextOffset {
 		return maxIndex
 	}
 
 	// offset is last message of ths non-capped segment
-	if offset >= maxSegment.BaseOffset && offset == maxSegment.NextOffset && !maxSegment.Capped {
+	if offset >= maxSegment.baseOffset && offset == maxSegment.nextOffset && !maxSegment.capped {
 		return maxIndex
 	}
 
 	// offset is first message of the next segment (if exists)
-	if offset >= maxSegment.BaseOffset && offset >= maxSegment.NextOffset {
+	if offset >= maxSegment.baseOffset && offset >= maxSegment.nextOffset {
 		return maxIndex + 1
 	}
 
@@ -242,7 +242,7 @@ func bsSegment(segments []*Segment, offset uint64, lo, hi int) int {
 	}
 
 	// offset is in the high side
-	if offset > maxSegment.BaseOffset {
+	if offset > maxSegment.baseOffset {
 		return bsSegment(segments, offset, hi, len(segments))
 	}
 

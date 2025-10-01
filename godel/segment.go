@@ -27,12 +27,12 @@ func (e *appendError) IsMaxSizeReached() bool {
 }
 
 type Segment struct {
-	BaseOffset uint64
-	NextOffset uint64
-	LogFile    *os.File
-	CurrSize   uint32
-	MaxSize    int32
-	Capped     bool
+	baseOffset uint64
+	nextOffset uint64
+	logFile    *os.File
+	currSize   uint32
+	maxSize    int32
+	capped     bool
 }
 
 // newSegment initializes a segment by opening the file descriptor to the segment log file.
@@ -46,12 +46,12 @@ func newSegment(basePath, topicName string, partition uint32, baseOffset uint64,
 	}
 
 	return &Segment{
-		BaseOffset: baseOffset,
-		NextOffset: baseOffset,
-		LogFile:    file,
-		CurrSize:   0,
-		MaxSize:    maxSize,
-		Capped:     false,
+		baseOffset: baseOffset,
+		nextOffset: baseOffset,
+		logFile:    file,
+		currSize:   0,
+		maxSize:    maxSize,
+		capped:     false,
 	}, nil
 }
 
@@ -76,7 +76,7 @@ func (s *Segment) loadOffsets() error {
 
 	for {
 		messageOffsetBuf := make([]byte, 8)
-		_, err := s.LogFile.ReadAt(messageOffsetBuf, pos+4)
+		_, err := s.logFile.ReadAt(messageOffsetBuf, pos+4)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -86,7 +86,7 @@ func (s *Segment) loadOffsets() error {
 		}
 
 		messageSizeBuf := make([]byte, 4)
-		_, err = s.LogFile.ReadAt(messageSizeBuf, pos)
+		_, err = s.logFile.ReadAt(messageSizeBuf, pos)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -107,13 +107,13 @@ func (s *Segment) loadOffsets() error {
 		pos += int64(messageSize)
 	}
 
-	s.BaseOffset = baseOffset
-	s.NextOffset = nextOffset
+	s.baseOffset = baseOffset
+	s.nextOffset = nextOffset
 	return nil
 }
 
 func (s *Segment) Close() error {
-	return s.LogFile.Close()
+	return s.logFile.Close()
 }
 
 // Append serializes the message and sets its offset based on the segment next
@@ -121,7 +121,7 @@ func (s *Segment) Close() error {
 //
 // Returns the message offset and an error.
 func (s *Segment) Append(message *Message) (uint64, *appendError) {
-	message.Offset = s.NextOffset
+	message.offset = s.nextOffset
 	blob := message.Serialize()
 
 	offset, appendErr := s.AppendBlob(blob)
@@ -129,7 +129,7 @@ func (s *Segment) Append(message *Message) (uint64, *appendError) {
 		return 0, appendErr
 	}
 
-	if offset != message.Offset {
+	if offset != message.offset {
 		return 0, &appendError{err: errMaxSizeReached}
 	}
 
@@ -143,22 +143,22 @@ func (s *Segment) Append(message *Message) (uint64, *appendError) {
 //
 // Returns the message offset and an error.
 func (s *Segment) AppendBlob(blob []byte) (uint64, *appendError) {
-	if len(blob)+int(s.CurrSize) > int(s.MaxSize) {
+	if len(blob)+int(s.currSize) > int(s.maxSize) {
 		return 0, &appendError{err: errMaxSizeReached}
 	}
 
 	newOffsetBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(newOffsetBuf, s.NextOffset)
+	binary.BigEndian.PutUint64(newOffsetBuf, s.nextOffset)
 
 	copy(blob[4:12], newOffsetBuf)
 
-	_, err := s.LogFile.Write(blob)
+	_, err := s.logFile.Write(blob)
 	if err != nil {
 		return 0, &appendError{err: err.Error()}
 	}
 
-	offset := s.NextOffset
-	s.NextOffset++
+	offset := s.nextOffset
+	s.nextOffset++
 
 	return offset, nil
 }
@@ -171,13 +171,13 @@ func (s *Segment) GetMessage(offset uint64) (*Message, error) {
 
 	for {
 		messageOffsetBuf := make([]byte, 8)
-		_, err := s.LogFile.ReadAt(messageOffsetBuf, pos+4)
+		_, err := s.logFile.ReadAt(messageOffsetBuf, pos+4)
 		if err != nil {
 			return nil, err
 		}
 
 		messageSizeBuf := make([]byte, 4)
-		_, err = s.LogFile.ReadAt(messageSizeBuf, pos)
+		_, err = s.logFile.ReadAt(messageSizeBuf, pos)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +187,7 @@ func (s *Segment) GetMessage(offset uint64) (*Message, error) {
 
 		if messageOffset == offset {
 			messageBuf := make([]byte, messageSize)
-			_, err = s.LogFile.ReadAt(messageBuf, pos)
+			_, err = s.logFile.ReadAt(messageBuf, pos)
 			if err != nil {
 				return nil, err
 			}

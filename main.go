@@ -6,11 +6,15 @@ import (
 )
 
 func main() {
-	partition := NewPartition(0, 10000000)
+	topic := NewTopic("mytopic")
 
 	go func() {
-		err := partition.Consume(0, func(message *Message) error {
-			fmt.Println("o", message.Offset, "k", message.Key, "p", string(message.Payload))
+		err := topic.Consume(0, func(message *Message) error {
+			fmt.Println(
+				"o", message.Offset,
+				"k", string(message.Key),
+				"p", string(message.Payload),
+			)
 			return nil
 		})
 		if err != nil {
@@ -19,12 +23,12 @@ func main() {
 	}()
 
 	for {
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 1)
 
 		fmt.Println("sending message")
-		offset, err := partition.Push(NewMessage(
+		offset, err := topic.Produce(NewMessage(
 			uint64(time.Now().Unix()),
-			"mykey",
+			[]byte("mykey"),
 			[]byte("abcadssad"),
 		))
 

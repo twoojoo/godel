@@ -6,17 +6,17 @@ import (
 )
 
 type Partition struct {
-	newMessageCh   chan int
-	ID             int
-	Segments       []*Segment // guaranteed segments order by offset
-	MaxSegmentSize uint32
+	newMessageCh chan int
+	ID           int
+	Segments     []*Segment // guaranteed segments order by offset
+	TopicOptions *TopicOptions
 }
 
-func NewPartition(id int, maxSegmentSize uint32) *Partition {
+func NewPartition(id int, opts *TopicOptions) *Partition {
 	return &Partition{
-		ID:             id,
-		MaxSegmentSize: maxSegmentSize,
-		newMessageCh:   make(chan int),
+		ID:           id,
+		TopicOptions: opts,
+		newMessageCh: make(chan int),
 	}
 }
 
@@ -24,13 +24,13 @@ func (p *Partition) Push(message *Message) (uint64, error) {
 	blob := message.Serialize()
 
 	// check that blob size doesn't exceed max message size
-	if len(blob) > int(p.MaxSegmentSize) {
+	if len(blob) > int(p.TopicOptions.SegmentBytes) {
 		return 0, fmt.Errorf("message.exceeds.max.segment.size")
 	}
 
 	// create new segment if none
 	if len(p.Segments) == 0 {
-		firstSegment, err := NewSegment(0, p.MaxSegmentSize)
+		firstSegment, err := NewSegment(0, p.TopicOptions.SegmentBytes)
 		if err != nil {
 			return 0, err
 		}
@@ -41,7 +41,7 @@ func (p *Partition) Push(message *Message) (uint64, error) {
 	offset, appendErr := p.Segments[len(p.Segments)-1].AppendBlob(blob)
 	if appendErr.IsMaxSizeReached() {
 		// if the max size of the segment is reached, create a new one
-		newSegment, err := NewSegment(0, p.MaxSegmentSize)
+		newSegment, err := NewSegment(0, p.TopicOptions.SegmentBytes)
 		if err != nil {
 			return 0, err
 		}

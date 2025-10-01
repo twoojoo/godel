@@ -7,12 +7,12 @@ import (
 
 type Message struct {
 	Offset    uint64
-	Key       string
+	Key       []byte
 	Payload   []byte
 	Timestamp uint64
 }
 
-func NewMessage(timestamp uint64, key string, payload []byte) *Message {
+func NewMessage(timestamp uint64, key []byte, payload []byte) *Message {
 	return &Message{
 		Offset:    0,
 		Key:       key,
@@ -32,12 +32,12 @@ func DeserializeMessage(b []byte) (*Message, error) {
 	timestamp := binary.BigEndian.Uint64(b[12:20])
 	keyLen := binary.BigEndian.Uint32(b[20:24])
 
-	key := string(b[24 : 24+keyLen])
+	key := b[24 : 24+keyLen]
 	payload := b[24+keyLen : messageSize]
 
 	return &Message{
 		Offset:    offset,
-		Key:       string(key),
+		Key:       key,
 		Payload:   payload,
 		Timestamp: timestamp,
 	}, nil
@@ -62,7 +62,7 @@ func (m *Message) Serialize() []byte {
 	binary.BigEndian.PutUint64(timestampBytes, m.Timestamp)
 
 	keyLenBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(keyLenBytes, uint32(len([]byte(m.Key))))
+	binary.BigEndian.PutUint32(keyLenBytes, uint32(len(m.Key)))
 
 	// payloadSizeBytes := make([]byte, 4)
 	// binary.BigEndian.PutUint32(payloadSizeBytes, uint32(len(m.Payload)))
@@ -73,7 +73,7 @@ func (m *Message) Serialize() []byte {
 	blob = append(blob, timestampBytes...)
 	blob = append(blob, keyLenBytes...)
 	// blob = append(blob, payloadSizeBytes...)
-	blob = append(blob, []byte(m.Key)...)
+	blob = append(blob, m.Key...)
 	blob = append(blob, m.Payload...)
 
 	return blob

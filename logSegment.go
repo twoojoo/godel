@@ -29,12 +29,12 @@ type Segment struct {
 	NextOffset uint64
 	LogFile    *os.File
 	CurrSize   uint32
-	MaxSize    uint32
+	MaxSize    int32
 	Capped     bool
 }
 
 // NewSegment initializes a segment by opening the file descriptor to the segment log file.
-func NewSegment(baseOffset uint64, maxSize uint32) (*Segment, error) {
+func NewSegment(baseOffset uint64, maxSize int32) (*Segment, error) {
 	logFilePath := strconv.Itoa(int(baseOffset)) + ".log"
 	file, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {

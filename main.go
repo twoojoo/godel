@@ -1,41 +1,32 @@
-package godel
+package main
 
 import (
 	"fmt"
+	"godel/godel"
+	"strconv"
 	"time"
 )
 
 func main() {
-	topic, err := NewTopic("mytopic")
+	options := godel.DeafaultBrokerOptions().
+		WithBasePath("./test")
 
-	go func() {
-		err := topic.Consume(0, func(message *Message) error {
-			fmt.Println(
-				"o", message.Offset,
-				"k", string(message.Key),
-				"p", string(message.Payload),
-			)
-			return nil
-		})
-		if err != nil {
-			fmt.Println("error while consuming", err)
-		}
-	}()
+	broker, err := godel.NewBroker(options)
+	if err != nil {
+		panic(err)
+	}
 
-	for {
-		time.Sleep(time.Second * 1)
+	_, err = broker.GetOrCreateTopic("mytopic")
+	if err != nil {
+		panic(err)
+	}
 
-		fmt.Println("sending message")
-		offset, err := topic.Produce(NewMessage(
+	for i := 0; i < 10; i++ {
+		fmt.Println("producing message", i)
+		broker.Produce("mytopic", godel.NewMessage(
 			uint64(time.Now().Unix()),
-			[]byte("mykey"),
-			[]byte("abcadssad"),
+			[]byte("key"+strconv.Itoa(i)),
+			[]byte("abracadabra"),
 		))
-
-		if err != nil {
-			panic(err)
-		}
-
-		println("offset", offset)
 	}
 }

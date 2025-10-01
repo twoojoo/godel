@@ -1,6 +1,8 @@
 package godel
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 )
@@ -8,13 +10,16 @@ import (
 const errTopicAlreadyExists = "topic.already.exists"
 
 type Topic struct {
-	Name       string
-	Partitions []*Partition
-	Options    *TopicOptions
+	Name          string
+	Partitions    []*Partition
+	Options       *TopicOptions
+	BrokerOptions *BrokerOptions
+	Consumers     []*TopicConsumer
 }
 
-func NewTopic(name string, opts ...*TopicOptions) (*Topic, error) {
-	topicPath := fmt.Sprintf("./%s", name)
+func newTopic(name string, topicOptions *TopicOptions, brokerOptions *BrokerOptions) (*Topic, error) {
+	topicPath := fmt.Sprintf("%s/%s", brokerOptions.BasePath, name)
+	topicOptsPath := fmt.Sprintf("%s/%s/options.json", brokerOptions.BasePath, name)
 
 	if _, err := os.Stat(topicPath); os.IsNotExist(err) {
 		err = os.Mkdir(topicPath, 0755)
@@ -24,21 +29,26 @@ func NewTopic(name string, opts ...*TopicOptions) (*Topic, error) {
 	} else if err != nil {
 		return nil, err
 	} else {
-		return nil, fmt.Errorf(errTopicAlreadyExists)
+		return nil, errors.New(errTopicAlreadyExists)
 	}
 
-	if len(opts) == 0 {
-		opts = append(opts, DefaultTopicOptions())
+	optionsBytes, err := json.Marshal(topicOptions)
+	if err != nil {
+		return nil, err
 	}
 
-	if opts[0].NumPartitions < 1 {
-		opts[0].NumPartitions = 1
+	err = os.WriteFile(topicOptsPath, optionsBytes, 0644)
+	if err != nil {
+		return nil, err
 	}
 
-	var err error
-	partitions := make([]*Partition, opts[0].NumPartitions)
+	if topicOptions.NumPartitions < 1 {
+		topicOptions.NumPartitions = 1
+	}
+
+	partitions := make([]*Partition, 0, topicOptions.NumPartitions)
 	for i := range partitions {
-		partitions[i], err = NewPartition(i, name, opts[0])
+		partitions[i], err = newPartition(uint32(i), name, topicOptions, brokerOptions)
 		if err != nil {
 			// should delete created partitions here!
 			return nil, err
@@ -46,26 +56,85 @@ func NewTopic(name string, opts ...*TopicOptions) (*Topic, error) {
 	}
 
 	return &Topic{
-		Name:       name,
-		Partitions: partitions,
-		Options:    opts[0],
+		Name:          name,
+		Partitions:    partitions,
+		Options:       topicOptions,
+		BrokerOptions: brokerOptions,
 	}, nil
 }
 
-func (t *Topic) Produce(message *Message) (uint64, error) {
-	partitionNumber := t.Options.Partitioner([]byte(message.Key), t.Options.NumPartitions)
+func loadTopic(name string, brokerOptions *BrokerOptions) (*Topic, error) {
+	topicPath := fmt.Sprintf("%s/%s", brokerOptions.BasePath, name)
+	topicOptsPath := fmt.Sprintf("%s/%s/options.json", brokerOptions.BasePath, name)
+
+	if _, err := os.Stat(topicPath); os.IsNotExist(err) {
+		err = os.Mkdir(topicPath, 0755)
+
+		if err != nil {
+			return nil, err
+		}
+	} else if err != nil {
+		return nil, err
+	}
+
+	optsBytes, err := os.ReadFile(topicOptsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var topicOptions TopicOptions
+	err = json.Unmarshal(optsBytes, &topicOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	partitionsNames, err := listSubfolders(topicPath)
+	if err != nil {
+		return nil, err
+	}
+
+	partitionNums, err := strSliceToUint32(partitionsNames)
+	if err != nil {
+		return nil, err
+	}
+
+	partitions := make([]*Partition, 0, len(partitionNums))
+	for _, num := range partitionNums {
+		partition, err := loadPartition(num, name, &topicOptions, brokerOptions)
+		if err != nil {
+			return nil, err
+		}
+
+		partitions = append(partitions, partition)
+	}
+
+	return &Topic{
+		Name:          name,
+		BrokerOptions: brokerOptions,
+		Partitions:    partitions,
+		Options:       &topicOptions,
+		Consumers:     []*TopicConsumer{},
+	}, nil
+}
+
+func (t *Topic) produce(message *Message) (uint64, error) {
+	partitionNumber := DefaultPartitioner([]byte(message.Key), t.Options.NumPartitions)
 
 	var partition *Partition
 	for i := range t.Partitions {
-		if t.Partitions[i].ID == int(partitionNumber) {
+		if t.Partitions[i].ID == partitionNumber {
 			partition = t.Partitions[i]
 		}
 	}
 
-	return partition.Push(message)
+	return partition.push(message)
 }
 
-func (t *Topic) Consume(offset uint64, callback func(message *Message) error) error {
+func (t *Topic) consume(offset uint64, callback func(message *Message) error) error {
 	// temp consume from first partition only
 	return t.Partitions[0].Consume(offset, callback)
+}
+
+func (t *Topic) registerConsumer(consumer *TopicConsumer) {
+	t.Consumers = append(t.Consumers, consumer)
 }

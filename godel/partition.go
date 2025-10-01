@@ -1,6 +1,7 @@
 package godel
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,15 +10,16 @@ import (
 const errPartitionAlreadyExists = "partition.already.exists"
 
 type Partition struct {
-	newMessageCh chan int
-	ID           int
-	Segments     []*Segment // guaranteed segments order by offset
-	TopicOptions *TopicOptions
-	TopicName    string
+	newMessageCh  chan int
+	ID            uint32
+	Segments      []*Segment // guaranteed segments order by offset
+	TopicOptions  *TopicOptions
+	BrokerOptions *BrokerOptions
+	TopicName     string
 }
 
-func NewPartition(id int, topicName string, opts *TopicOptions) (*Partition, error) {
-	partitionPath := fmt.Sprintf("./%s/%s", topicName, id)
+func newPartition(id uint32, topicName string, topicOptions *TopicOptions, brokerOptions *BrokerOptions) (*Partition, error) {
+	partitionPath := fmt.Sprintf("%s/%s/%v", brokerOptions.BasePath, topicName, id)
 
 	if _, err := os.Stat(partitionPath); os.IsNotExist(err) {
 		err = os.Mkdir(partitionPath, 0755)
@@ -27,14 +29,57 @@ func NewPartition(id int, topicName string, opts *TopicOptions) (*Partition, err
 	} else if err != nil {
 		return nil, err
 	} else {
-		return nil, fmt.Errorf(errPartitionAlreadyExists)
+		return nil, errors.New(errPartitionAlreadyExists)
 	}
 
 	return &Partition{
-		ID:           id,
-		TopicOptions: opts,
-		newMessageCh: make(chan int),
-		TopicName:    topicName,
+		ID:            id,
+		newMessageCh:  make(chan int),
+		TopicName:     topicName,
+		TopicOptions:  topicOptions,
+		BrokerOptions: brokerOptions,
+	}, nil
+}
+
+func loadPartition(id uint32, topicName string, topicOptions *TopicOptions, brokerOptions *BrokerOptions) (*Partition, error) {
+	partitionPath := fmt.Sprintf("%s/%s/%v", brokerOptions.BasePath, topicName, id)
+
+	if _, err := os.Stat(partitionPath); os.IsNotExist(err) {
+		err = os.Mkdir(partitionPath, 0755)
+		if err != nil {
+			return nil, err
+		}
+	} else if err != nil {
+		return nil, err
+	}
+
+	segmentsStr, err := listFilesFilterFormat(partitionPath, "log")
+	if err != nil {
+		return nil, err
+	}
+
+	segmentsBaseOffsets, err := strSliceToUint64(segmentsStr)
+	if err != nil {
+		return nil, err
+	}
+
+	segments := make([]*Segment, 0, len(segmentsBaseOffsets))
+	for i := range segmentsBaseOffsets {
+		segment, err := loadSegment(segmentsBaseOffsets[i], topicOptions.SegmentBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		segments = append(segments, segment)
+	}
+
+	return &Partition{
+		ID:            id,
+		newMessageCh:  make(chan int),
+		TopicName:     topicName,
+		TopicOptions:  topicOptions,
+		BrokerOptions: brokerOptions,
+		Segments:      segments,
 	}, nil
 }
 
@@ -54,7 +99,7 @@ func (p *Partition) GetNextOffset() uint64 {
 	return p.Segments[0].NextOffset
 }
 
-func (p *Partition) Push(message *Message) (uint64, error) {
+func (p *Partition) push(message *Message) (uint64, error) {
 	blob := message.Serialize()
 
 	// check that blob size doesn't exceed max message size
@@ -64,7 +109,7 @@ func (p *Partition) Push(message *Message) (uint64, error) {
 
 	// create new segment if none
 	if len(p.Segments) == 0 {
-		firstSegment, err := NewSegment(0, p.TopicOptions.SegmentBytes)
+		firstSegment, err := newSegment(0, p.TopicOptions.SegmentBytes)
 		if err != nil {
 			return 0, err
 		}
@@ -75,7 +120,7 @@ func (p *Partition) Push(message *Message) (uint64, error) {
 	offset, appendErr := p.Segments[len(p.Segments)-1].AppendBlob(blob)
 	if appendErr.IsMaxSizeReached() {
 		// if the max size of the segment is reached, create a new one
-		newSegment, err := NewSegment(0, p.TopicOptions.SegmentBytes)
+		newSegment, err := newSegment(0, p.TopicOptions.SegmentBytes)
 		if err != nil {
 			return 0, err
 		}
@@ -85,8 +130,6 @@ func (p *Partition) Push(message *Message) (uint64, error) {
 	}
 
 	message.Offset = offset
-	p.newMessageCh <- 1
-
 	return offset, nil
 }
 

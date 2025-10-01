@@ -33,8 +33,8 @@ type Segment struct {
 	Capped     bool
 }
 
-// NewSegment initializes a segment by opening the file descriptor to the segment log file.
-func NewSegment(baseOffset uint64, maxSize int32) (*Segment, error) {
+// newSegment initializes a segment by opening the file descriptor to the segment log file.
+func newSegment(baseOffset uint64, maxSize int32) (*Segment, error) {
 	logFilePath := strconv.Itoa(int(baseOffset)) + ".log"
 	file, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
@@ -49,6 +49,10 @@ func NewSegment(baseOffset uint64, maxSize int32) (*Segment, error) {
 		MaxSize:    maxSize,
 		Capped:     false,
 	}, nil
+}
+
+func loadSegment(baseOffset uint64, maxSize int32) (*Segment, error) {
+	return newSegment(baseOffset, maxSize)
 }
 
 func (s *Segment) Close() error {

@@ -89,6 +89,8 @@ func (b *Broker) Produce(topic string, message *Message) (uint64, error) {
 	return 0, errors.New(errTopicNotFound)
 }
 
+// loadTopics scans broker path for topics folders and
+// recursively loads eache topic from its own path.
 func (b *Broker) loadTopics() ([]*Topic, error) {
 	topicNames, err := listSubfolders(b.Options.BasePath)
 	if err != nil {

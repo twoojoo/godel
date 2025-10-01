@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 )
 
@@ -32,6 +33,8 @@ func newPartition(id uint32, topicName string, topicOptions *TopicOptions, broke
 		return nil, errors.New(errPartitionAlreadyExists)
 	}
 
+	slog.Info("initializing partition", "topic", topicName, "partition", id)
+
 	return &Partition{
 		ID:            id,
 		newMessageCh:  make(chan int),
@@ -42,6 +45,8 @@ func newPartition(id uint32, topicName string, topicOptions *TopicOptions, broke
 }
 
 func loadPartition(id uint32, topicName string, topicOptions *TopicOptions, brokerOptions *BrokerOptions) (*Partition, error) {
+	slog.Info("loading partition", "topic", topicName, "partition", id)
+
 	partitionPath := fmt.Sprintf("%s/%s/%v", brokerOptions.BasePath, topicName, id)
 
 	if _, err := os.Stat(partitionPath); os.IsNotExist(err) {
@@ -65,7 +70,7 @@ func loadPartition(id uint32, topicName string, topicOptions *TopicOptions, brok
 
 	segments := make([]*Segment, 0, len(segmentsBaseOffsets))
 	for i := range segmentsBaseOffsets {
-		segment, err := loadSegment(segmentsBaseOffsets[i], topicOptions.SegmentBytes)
+		segment, err := loadSegment(brokerOptions.BasePath, topicName, id, segmentsBaseOffsets[i], topicOptions.SegmentBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -93,10 +98,10 @@ func (p *Partition) GetBaseOffset() uint64 {
 
 func (p *Partition) GetNextOffset() uint64 {
 	if len(p.Segments) == 0 {
-		return 0
+		return 1
 	}
 
-	return p.Segments[0].NextOffset
+	return p.Segments[len(p.Segments)-1].NextOffset
 }
 
 func (p *Partition) push(message *Message) (uint64, error) {
@@ -109,10 +114,13 @@ func (p *Partition) push(message *Message) (uint64, error) {
 
 	// create new segment if none
 	if len(p.Segments) == 0 {
-		firstSegment, err := newSegment(0, p.TopicOptions.SegmentBytes)
+		slog.Info("initializing new segment", "base_offset", 0)
+
+		firstSegment, err := newSegment(p.BrokerOptions.BasePath, p.TopicName, p.ID, 0, p.TopicOptions.SegmentBytes)
 		if err != nil {
 			return 0, err
 		}
+
 		p.Segments = append(p.Segments, firstSegment)
 	}
 
@@ -120,7 +128,8 @@ func (p *Partition) push(message *Message) (uint64, error) {
 	offset, appendErr := p.Segments[len(p.Segments)-1].AppendBlob(blob)
 	if appendErr.IsMaxSizeReached() {
 		// if the max size of the segment is reached, create a new one
-		newSegment, err := newSegment(0, p.TopicOptions.SegmentBytes)
+		nextOffset := p.GetNextOffset()
+		newSegment, err := newSegment(p.BrokerOptions.BasePath, p.TopicName, p.ID, nextOffset, p.TopicOptions.SegmentBytes)
 		if err != nil {
 			return 0, err
 		}

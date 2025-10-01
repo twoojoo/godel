@@ -2,6 +2,8 @@ package godel
 
 import (
 	"encoding/binary"
+	"fmt"
+	"io"
 	"os"
 	"strconv"
 )
@@ -34,8 +36,10 @@ type Segment struct {
 }
 
 // newSegment initializes a segment by opening the file descriptor to the segment log file.
-func newSegment(baseOffset uint64, maxSize int32) (*Segment, error) {
-	logFilePath := strconv.Itoa(int(baseOffset)) + ".log"
+func newSegment(basePath, topicName string, partition uint32, baseOffset uint64, maxSize int32) (*Segment, error) {
+	logFileName := strconv.Itoa(int(baseOffset)) + ".log"
+	logFilePath := fmt.Sprintf("%s/%s/%v/%s", basePath, topicName, partition, logFileName)
+
 	file, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
@@ -51,8 +55,61 @@ func newSegment(baseOffset uint64, maxSize int32) (*Segment, error) {
 	}, nil
 }
 
-func loadSegment(baseOffset uint64, maxSize int32) (*Segment, error) {
-	return newSegment(baseOffset, maxSize)
+func loadSegment(basePath, topicName string, partition uint32, baseOffset uint64, maxSize int32) (*Segment, error) {
+	segment, err := newSegment(basePath, topicName, partition, baseOffset, maxSize)
+	if err != nil {
+		return nil, err
+	}
+
+	err = segment.loadOffsets()
+	if err != nil {
+		return nil, err
+	}
+
+	return segment, nil
+}
+
+func (s *Segment) loadOffsets() error {
+	pos := int64(0)
+	var baseOffset uint64
+	var nextOffset uint64
+
+	for {
+		messageOffsetBuf := make([]byte, 8)
+		_, err := s.LogFile.ReadAt(messageOffsetBuf, pos+4)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			return err
+		}
+
+		messageSizeBuf := make([]byte, 4)
+		_, err = s.LogFile.ReadAt(messageSizeBuf, pos)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			return err
+		}
+
+		messageOffset := binary.BigEndian.Uint64(messageOffsetBuf)
+		messageSize := binary.BigEndian.Uint32(messageSizeBuf)
+
+		if pos == 0 {
+			baseOffset = messageOffset
+		}
+
+		nextOffset = messageOffset + 1
+
+		pos += int64(messageSize)
+	}
+
+	s.BaseOffset = baseOffset
+	s.NextOffset = nextOffset
+	return nil
 }
 
 func (s *Segment) Close() error {

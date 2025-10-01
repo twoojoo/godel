@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 )
 
 const errTopicAlreadyExists = "topic.already.exists"
+const errPartitionsNumMismatch = "num.partition.mismatch"
 
 type Topic struct {
 	Name          string
@@ -32,6 +34,8 @@ func newTopic(name string, topicOptions *TopicOptions, brokerOptions *BrokerOpti
 		return nil, errors.New(errTopicAlreadyExists)
 	}
 
+	slog.Info("initializing topic", "topic", name)
+
 	optionsBytes, err := json.Marshal(topicOptions)
 	if err != nil {
 		return nil, err
@@ -46,24 +50,38 @@ func newTopic(name string, topicOptions *TopicOptions, brokerOptions *BrokerOpti
 		topicOptions.NumPartitions = 1
 	}
 
-	partitions := make([]*Partition, 0, topicOptions.NumPartitions)
+	topic := &Topic{
+		Name:          name,
+		Options:       topicOptions,
+		BrokerOptions: brokerOptions,
+	}
+
+	err = topic.initializePartitions()
+	if err != nil {
+		return nil, err
+	}
+
+	return topic, nil
+}
+
+func (t *Topic) initializePartitions() error {
+	var err error
+	partitions := make([]*Partition, t.Options.NumPartitions)
 	for i := range partitions {
-		partitions[i], err = newPartition(uint32(i), name, topicOptions, brokerOptions)
+		partitions[i], err = newPartition(uint32(i), t.Name, t.Options, t.BrokerOptions)
 		if err != nil {
 			// should delete created partitions here!
-			return nil, err
+			return err
 		}
 	}
 
-	return &Topic{
-		Name:          name,
-		Partitions:    partitions,
-		Options:       topicOptions,
-		BrokerOptions: brokerOptions,
-	}, nil
+	t.Partitions = partitions
+	return nil
 }
 
 func loadTopic(name string, brokerOptions *BrokerOptions) (*Topic, error) {
+	slog.Info("loading topic", "topic", name)
+
 	topicPath := fmt.Sprintf("%s/%s", brokerOptions.BasePath, name)
 	topicOptsPath := fmt.Sprintf("%s/%s/options.json", brokerOptions.BasePath, name)
 
@@ -98,9 +116,37 @@ func loadTopic(name string, brokerOptions *BrokerOptions) (*Topic, error) {
 		return nil, err
 	}
 
+	topic := &Topic{
+		Name:          name,
+		BrokerOptions: brokerOptions,
+		Options:       &topicOptions,
+		Consumers:     []*TopicConsumer{},
+	}
+
+	if len(partitionNums) == 0 {
+		slog.Info("zero partitions found", "topic", name, "partitions", topic.Options.NumPartitions)
+
+		err = topic.initializePartitions()
+		if err != nil {
+			return nil, err
+		}
+
+		return topic, nil
+	}
+
+	if len(partitionNums) != int(topicOptions.NumPartitions) {
+		return nil, errors.New(errPartitionsNumMismatch)
+	}
+
 	partitions := make([]*Partition, 0, len(partitionNums))
 	for _, num := range partitionNums {
-		partition, err := loadPartition(num, name, &topicOptions, brokerOptions)
+		partition, err := newPartition(num, name, &topicOptions, brokerOptions)
+		if err != nil && err.Error() == errPartitionAlreadyExists {
+			partition, err = loadPartition(num, name, &topicOptions, brokerOptions)
+			if err != nil {
+				return nil, err
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -108,13 +154,9 @@ func loadTopic(name string, brokerOptions *BrokerOptions) (*Topic, error) {
 		partitions = append(partitions, partition)
 	}
 
-	return &Topic{
-		Name:          name,
-		BrokerOptions: brokerOptions,
-		Partitions:    partitions,
-		Options:       &topicOptions,
-		Consumers:     []*TopicConsumer{},
-	}, nil
+	topic.Partitions = partitions
+
+	return topic, nil
 }
 
 func (t *Topic) produce(message *Message) (uint64, error) {

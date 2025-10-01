@@ -23,10 +23,15 @@ func main() {
 
 	for i := 0; i < 10; i++ {
 		fmt.Println("producing message", i)
-		broker.Produce("mytopic", godel.NewMessage(
+		offset, err := broker.Produce("mytopic", godel.NewMessage(
 			uint64(time.Now().Unix()),
 			[]byte("key"+strconv.Itoa(i)),
 			[]byte("abracadabra"),
 		))
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println("offset", offset)
 	}
 }

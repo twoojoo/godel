@@ -8,8 +8,8 @@ import (
 const errTopicNotFound = "topic.not.found"
 
 type Broker struct {
-	Options *BrokerOptions
-	Topics  []*Topic
+	options *BrokerOptions
+	topics  []*Topic
 }
 
 func NewBroker(opts ...*BrokerOptions) (*Broker, error) {
@@ -24,7 +24,7 @@ func NewBroker(opts ...*BrokerOptions) (*Broker, error) {
 		}
 
 		broker = Broker{
-			Options: opts[0],
+			options: opts[0],
 		}
 
 		// create broker path if it doesn't exists yet
@@ -39,7 +39,7 @@ func NewBroker(opts ...*BrokerOptions) (*Broker, error) {
 
 		// load all topics from fs
 		var err error
-		broker.Topics, err = broker.loadTopics()
+		broker.topics, err = broker.loadTopics()
 		if err != nil {
 			errorCh <- err
 		}
@@ -51,6 +51,7 @@ func NewBroker(opts ...*BrokerOptions) (*Broker, error) {
 	case err := <-errorCh:
 		return nil, err
 	case <-readyCh:
+		broker.scheduleRetentionCheck()
 		return &broker, nil
 	}
 }
@@ -58,14 +59,14 @@ func NewBroker(opts ...*BrokerOptions) (*Broker, error) {
 // loadTopics scans broker path for topics folders and
 // recursively loads eache topic from its own path.
 func (b *Broker) loadTopics() ([]*Topic, error) {
-	topicNames, err := listSubfolders(b.Options.BasePath)
+	topicNames, err := listSubfolders(b.options.BasePath)
 	if err != nil {
 		return nil, err
 	}
 
 	topics := make([]*Topic, 0, len(topicNames))
 	for i := range topicNames {
-		topic, err := loadTopic(topicNames[i], b.Options)
+		topic, err := loadTopic(topicNames[i], b.options, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -81,11 +82,11 @@ func (b *Broker) GetOrCreateTopic(name string, opts ...*TopicOptions) (*Topic, e
 		opts = append(opts, DefaultTopicOptions())
 	}
 
-	topic, err := newTopic(name, opts[0], b.Options)
+	topic, err := newTopic(name, opts[0], b.options)
 	if err != nil && err.Error() == errTopicAlreadyExists {
-		for i := range b.Topics {
-			if b.Topics[i].name == name {
-				return b.Topics[i], nil
+		for i := range b.topics {
+			if b.topics[i].name == name {
+				return loadTopic(name, b.options, opts[0])
 			}
 		}
 
@@ -95,15 +96,15 @@ func (b *Broker) GetOrCreateTopic(name string, opts ...*TopicOptions) (*Topic, e
 		return nil, err
 	}
 
-	b.Topics = append(b.Topics, topic)
+	b.topics = append(b.topics, topic)
 
 	return topic, nil
 }
 
 func (b *Broker) Produce(topic string, message *Message) (uint64, error) {
-	for i := range b.Topics {
-		if b.Topics[i].name == topic {
-			return b.Topics[i].produce(message)
+	for i := range b.topics {
+		if b.topics[i].name == topic {
+			return b.topics[i].produce(message)
 		}
 	}
 

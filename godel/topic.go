@@ -19,9 +19,47 @@ type Topic struct {
 	consumers     []*TopicConsumer
 }
 
+func (t *Topic) persistOptions() error {
+	topicOptsPath := fmt.Sprintf("%s/%s/options.json", t.brokerOptions.BasePath, t.name)
+
+	if t.options.NumPartitions < 1 {
+		t.options.NumPartitions = 1
+	}
+
+	optionsBytes, err := json.Marshal(t.options)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(topicOptsPath, optionsBytes, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *Topic) loadOptions() error {
+	topicOptsPath := fmt.Sprintf("%s/%s/options.json", t.brokerOptions.BasePath, t.name)
+
+	optsBytes, err := os.ReadFile(topicOptsPath)
+	if err != nil {
+		return err
+	}
+
+	var topicOptions TopicOptions
+	err = json.Unmarshal(optsBytes, &topicOptions)
+	if err != nil {
+		return err
+	}
+
+	t.options = &topicOptions
+	return nil
+}
+
 func newTopic(name string, topicOptions *TopicOptions, brokerOptions *BrokerOptions) (*Topic, error) {
 	topicPath := fmt.Sprintf("%s/%s", brokerOptions.BasePath, name)
-	topicOptsPath := fmt.Sprintf("%s/%s/options.json", brokerOptions.BasePath, name)
+	// topicOptsPath := fmt.Sprintf("%s/%s/options.json", brokerOptions.BasePath, name)
 
 	if _, err := os.Stat(topicPath); os.IsNotExist(err) {
 		err = os.Mkdir(topicPath, 0755)
@@ -36,24 +74,15 @@ func newTopic(name string, topicOptions *TopicOptions, brokerOptions *BrokerOpti
 
 	slog.Info("initializing topic", "topic", name)
 
-	optionsBytes, err := json.Marshal(topicOptions)
-	if err != nil {
-		return nil, err
-	}
-
-	err = os.WriteFile(topicOptsPath, optionsBytes, 0644)
-	if err != nil {
-		return nil, err
-	}
-
-	if topicOptions.NumPartitions < 1 {
-		topicOptions.NumPartitions = 1
-	}
-
 	topic := &Topic{
 		name:          name,
 		options:       topicOptions,
 		brokerOptions: brokerOptions,
+	}
+
+	err := topic.persistOptions()
+	if err != nil {
+		return nil, err
 	}
 
 	err = topic.initializePartitions()
@@ -79,11 +108,8 @@ func (t *Topic) initializePartitions() error {
 	return nil
 }
 
-func loadTopic(name string, brokerOptions *BrokerOptions) (*Topic, error) {
-	slog.Info("loading topic", "topic", name)
-
+func loadTopic(name string, brokerOptions *BrokerOptions, newTopicOptions *TopicOptions) (*Topic, error) {
 	topicPath := fmt.Sprintf("%s/%s", brokerOptions.BasePath, name)
-	topicOptsPath := fmt.Sprintf("%s/%s/options.json", brokerOptions.BasePath, name)
 
 	if _, err := os.Stat(topicPath); os.IsNotExist(err) {
 		err = os.Mkdir(topicPath, 0755)
@@ -95,15 +121,23 @@ func loadTopic(name string, brokerOptions *BrokerOptions) (*Topic, error) {
 		return nil, err
 	}
 
-	optsBytes, err := os.ReadFile(topicOptsPath)
-	if err != nil {
-		return nil, err
+	topic := &Topic{
+		name:          name,
+		brokerOptions: brokerOptions,
+		options:       newTopicOptions,
+		consumers:     []*TopicConsumer{},
 	}
 
-	var topicOptions TopicOptions
-	err = json.Unmarshal(optsBytes, &topicOptions)
-	if err != nil {
-		return nil, err
+	if newTopicOptions != nil {
+		err := topic.persistOptions()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := topic.loadOptions()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	partitionsNames, err := listSubfolders(topicPath)
@@ -116,16 +150,7 @@ func loadTopic(name string, brokerOptions *BrokerOptions) (*Topic, error) {
 		return nil, err
 	}
 
-	topic := &Topic{
-		name:          name,
-		brokerOptions: brokerOptions,
-		options:       &topicOptions,
-		consumers:     []*TopicConsumer{},
-	}
-
 	if len(partitionNums) == 0 {
-		slog.Info("zero partitions found", "topic", name, "partitions", topic.options.NumPartitions)
-
 		err = topic.initializePartitions()
 		if err != nil {
 			return nil, err
@@ -134,15 +159,15 @@ func loadTopic(name string, brokerOptions *BrokerOptions) (*Topic, error) {
 		return topic, nil
 	}
 
-	if len(partitionNums) != int(topicOptions.NumPartitions) {
+	if len(partitionNums) != int(topic.options.NumPartitions) {
 		return nil, errors.New(errPartitionsNumMismatch)
 	}
 
 	partitions := make([]*Partition, 0, len(partitionNums))
 	for _, num := range partitionNums {
-		partition, err := newPartition(num, name, &topicOptions, brokerOptions)
+		partition, err := newPartition(num, name, topic.options, brokerOptions)
 		if err != nil && err.Error() == errPartitionAlreadyExists {
-			partition, err = loadPartition(num, name, &topicOptions, brokerOptions)
+			partition, err = loadPartition(num, name, topic.options, brokerOptions)
 			if err != nil {
 				return nil, err
 			}

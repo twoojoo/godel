@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"time"
 )
 
 const errMaxSizeReached = "max.segment.size.reached"
@@ -61,7 +62,7 @@ func loadSegment(basePath, topicName string, partition uint32, baseOffset uint64
 		return nil, err
 	}
 
-	err = segment.loadOffsets()
+	err = segment.loadOffsetsAndSizes()
 	if err != nil {
 		return nil, err
 	}
@@ -69,10 +70,11 @@ func loadSegment(basePath, topicName string, partition uint32, baseOffset uint64
 	return segment, nil
 }
 
-func (s *Segment) loadOffsets() error {
+func (s *Segment) loadOffsetsAndSizes() error {
 	pos := int64(0)
 	var baseOffset uint64
 	var nextOffset uint64
+	var currSize uint32
 
 	for {
 		messageOffsetBuf := make([]byte, 8)
@@ -103,17 +105,36 @@ func (s *Segment) loadOffsets() error {
 		}
 
 		nextOffset = messageOffset + 1
+		currSize += messageSize
 
 		pos += int64(messageSize)
 	}
 
 	s.baseOffset = baseOffset
 	s.nextOffset = nextOffset
+	s.currSize = currSize
 	return nil
 }
 
 func (s *Segment) close() error {
 	return s.logFile.Close()
+}
+
+func (s *Segment) delete(basePath, topicName string, partition uint32) error {
+	err := s.logFile.Close()
+	if err != nil {
+		return err
+	}
+
+	logFileName := strconv.Itoa(int(s.baseOffset)) + ".log"
+	logFilePath := fmt.Sprintf("%s/%s/%v/%s", basePath, topicName, partition, logFileName)
+
+	err = os.Remove(logFilePath)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // append serializes the message and sets its offset based on the segment next
@@ -159,6 +180,7 @@ func (s *Segment) appendBlob(blob []byte) (uint64, *appendError) {
 
 	offset := s.nextOffset
 	s.nextOffset++
+	s.currSize += uint32(len(blob))
 
 	return offset, nil
 }
@@ -202,4 +224,22 @@ func (s *Segment) getMessage(offset uint64) (*Message, error) {
 
 		pos += int64(messageSize)
 	}
+}
+
+func (s *Segment) runMaxRetentionMilliCheck(now uint64, mrm int64) (bool, error) {
+	if mrm < 0 {
+		return false, nil
+	}
+
+	lastMessage, err := s.getMessage(s.nextOffset - 1)
+	if err != nil {
+		return false, err
+	}
+
+	fmt.Println(time.Unix(int64(now), 0))
+	fmt.Println(time.Unix(int64(lastMessage.timestamp), 0))
+	fmt.Println(time.Duration(mrm) * time.Millisecond)
+
+	expired := now-lastMessage.timestamp > uint64(mrm)
+	return expired, nil
 }

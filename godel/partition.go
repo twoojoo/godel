@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"slices"
 )
 
 const errPartitionAlreadyExists = "partition.already.exists"
@@ -45,8 +46,6 @@ func newPartition(id uint32, topicName string, topicOptions *TopicOptions, broke
 }
 
 func loadPartition(id uint32, topicName string, topicOptions *TopicOptions, brokerOptions *BrokerOptions) (*Partition, error) {
-	slog.Info("loading partition", "topic", topicName, "partition", id)
-
 	partitionPath := fmt.Sprintf("%s/%s/%v", brokerOptions.BasePath, topicName, id)
 
 	if _, err := os.Stat(partitionPath); os.IsNotExist(err) {
@@ -102,6 +101,15 @@ func (p *Partition) getNextOffset() uint64 {
 	}
 
 	return p.segments[len(p.segments)-1].nextOffset
+}
+
+func (p *Partition) getSize() uint32 {
+	var size uint32
+	for i := range p.segments {
+		size += p.segments[i].currSize
+	}
+
+	return size
 }
 
 func (p *Partition) push(message *Message) (uint64, error) {
@@ -249,4 +257,14 @@ func bsSegment(segments []*Segment, offset uint64, lo, hi int) int {
 	// offset is in the low side
 	mid := (hi-lo)/2 + 1
 	return bsSegment(segments, offset, lo, lo+mid)
+}
+
+func (p *Partition) deleteSegment(i int) error {
+	err := p.segments[i].delete(p.brokerOptions.BasePath, p.topicName, p.num)
+	if err != nil {
+		return err
+	}
+
+	p.segments = slices.Delete(p.segments, i, i)
+	return nil
 }

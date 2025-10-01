@@ -8,14 +8,18 @@ import (
 
 func main() {
 	options := godel.DeafaultBrokerOptions().
-		WithBasePath("./test")
+		WithBasePath("./test").
+		WithLogRetentionCheckInterval(time.Minute * 5)
 
 	broker, err := godel.NewBroker(options)
 	if err != nil {
 		panic(err)
 	}
 
-	topic, err := broker.GetOrCreateTopic("mytopic")
+	topicOptions := godel.DefaultTopicOptions().
+		WithRetentionMilli(time.Minute * 5)
+
+	topic, err := broker.GetOrCreateTopic("mytopic", topicOptions)
 	if err != nil {
 		panic(err)
 	}

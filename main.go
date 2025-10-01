@@ -1,4 +1,4 @@
-package main
+package godel
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	topic := NewTopic("mytopic")
+	topic, err := NewTopic("mytopic")
 
 	go func() {
 		err := topic.Consume(0, func(message *Message) error {

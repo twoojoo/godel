@@ -24,12 +24,12 @@ func (c *TopicConsumer) Consume(fromBeginning bool, callback func(m *Message) er
 		go func() {
 			offset := uint64(0)
 			if fromBeginning {
-				offset = c.partitions[j].GetBaseOffset()
+				offset = c.partitions[j].getBaseOffset()
 			} else {
-				offset = c.partitions[j].GetNextOffset()
+				offset = c.partitions[j].getNextOffset()
 			}
 
-			err := c.partitions[j].Consume(offset, func(message *Message) error {
+			err := c.partitions[j].consume(offset, func(message *Message) error {
 				messageCh <- message
 				return nil
 			})

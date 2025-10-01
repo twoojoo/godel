@@ -178,7 +178,7 @@ func (t *Topic) produce(message *Message) (uint64, error) {
 
 func (t *Topic) consume(offset uint64, callback func(message *Message) error) error {
 	// temp consume from first partition only
-	return t.partitions[0].Consume(offset, callback)
+	return t.partitions[0].consume(offset, callback)
 }
 
 func (t *Topic) registerConsumer(consumer *TopicConsumer) {

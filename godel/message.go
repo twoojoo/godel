@@ -22,7 +22,7 @@ func NewMessage(timestamp uint64, key []byte, payload []byte) *Message {
 	}
 }
 
-func DeserializeMessage(b []byte) (*Message, error) {
+func deserializeMessage(b []byte) (*Message, error) {
 	messageSize := binary.BigEndian.Uint32(b)
 
 	if messageSize != uint32(len(b)) {
@@ -44,7 +44,7 @@ func DeserializeMessage(b []byte) (*Message, error) {
 	}, nil
 }
 
-func (m *Message) Serialize() []byte {
+func (m *Message) serialize() []byte {
 	totalSize := uint32(4 + // total size itself
 		8 + // offset
 		8 + // timestamp

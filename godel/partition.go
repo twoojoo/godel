@@ -88,7 +88,7 @@ func loadPartition(id uint32, topicName string, topicOptions *TopicOptions, brok
 	}, nil
 }
 
-func (p *Partition) GetBaseOffset() uint64 {
+func (p *Partition) getBaseOffset() uint64 {
 	if len(p.segments) == 0 {
 		return 0
 	}
@@ -96,7 +96,7 @@ func (p *Partition) GetBaseOffset() uint64 {
 	return p.segments[0].baseOffset
 }
 
-func (p *Partition) GetNextOffset() uint64 {
+func (p *Partition) getNextOffset() uint64 {
 	if len(p.segments) == 0 {
 		return 1
 	}
@@ -105,7 +105,7 @@ func (p *Partition) GetNextOffset() uint64 {
 }
 
 func (p *Partition) push(message *Message) (uint64, error) {
-	blob := message.Serialize()
+	blob := message.serialize()
 
 	// check that blob size doesn't exceed max message size
 	if len(blob) > int(p.topicOptions.SegmentBytes) {
@@ -125,10 +125,10 @@ func (p *Partition) push(message *Message) (uint64, error) {
 	}
 
 	// append the message to the log segment
-	offset, appendErr := p.segments[len(p.segments)-1].AppendBlob(blob)
-	if appendErr.IsMaxSizeReached() {
+	offset, appendErr := p.segments[len(p.segments)-1].appendBlob(blob)
+	if appendErr.isMaxSizeReached() {
 		// if the max size of the segment is reached, create a new one
-		nextOffset := p.GetNextOffset()
+		nextOffset := p.getNextOffset()
 		newSegment, err := newSegment(p.brokerOptions.BasePath, p.topicName, p.num, nextOffset, p.topicOptions.SegmentBytes)
 		if err != nil {
 			return 0, err
@@ -142,7 +142,7 @@ func (p *Partition) push(message *Message) (uint64, error) {
 	return offset, nil
 }
 
-func (p *Partition) Consume(offset uint64, callback func(message *Message) error) error {
+func (p *Partition) consume(offset uint64, callback func(message *Message) error) error {
 	// seatch the segment corresponding to the requested offset
 	segmentIdx := binarySearchSegment(p.segments, offset)
 
@@ -166,7 +166,7 @@ func (p *Partition) Consume(offset uint64, callback func(message *Message) error
 		// (aka if the message actually exists) get the message, otherwise just
 		// wait for a new message signal.
 		if offset < p.segments[segmentIdx].nextOffset {
-			message, err := p.segments[segmentIdx].GetMessage(offset)
+			message, err := p.segments[segmentIdx].getMessage(offset)
 
 			// last message segment reached and segment capped
 			// increment segmentindex and continue looping

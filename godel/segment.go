@@ -18,7 +18,7 @@ func (e *appendError) Error() string {
 	return e.err
 }
 
-func (e *appendError) IsMaxSizeReached() bool {
+func (e *appendError) isMaxSizeReached() bool {
 	if e == nil {
 		return false
 	}
@@ -112,19 +112,19 @@ func (s *Segment) loadOffsets() error {
 	return nil
 }
 
-func (s *Segment) Close() error {
+func (s *Segment) close() error {
 	return s.logFile.Close()
 }
 
-// Append serializes the message and sets its offset based on the segment next
+// append serializes the message and sets its offset based on the segment next
 // available offset. Then it appends it to the segment log.
 //
 // Returns the message offset and an error.
-func (s *Segment) Append(message *Message) (uint64, *appendError) {
+func (s *Segment) append(message *Message) (uint64, *appendError) {
 	message.offset = s.nextOffset
-	blob := message.Serialize()
+	blob := message.serialize()
 
-	offset, appendErr := s.AppendBlob(blob)
+	offset, appendErr := s.appendBlob(blob)
 	if appendErr != nil {
 		return 0, appendErr
 	}
@@ -136,13 +136,13 @@ func (s *Segment) Append(message *Message) (uint64, *appendError) {
 	return offset, nil
 }
 
-// AppendBlob works like Append, but requires an already serialized message.
+// appendBlob works like Append, but requires an already serialized message.
 //
 // It sets the message offset in the blob but does not set the offset in the message object,
 // so it must be set manually after the function is executed.
 //
 // Returns the message offset and an error.
-func (s *Segment) AppendBlob(blob []byte) (uint64, *appendError) {
+func (s *Segment) appendBlob(blob []byte) (uint64, *appendError) {
 	if len(blob)+int(s.currSize) > int(s.maxSize) {
 		return 0, &appendError{err: errMaxSizeReached}
 	}
@@ -163,10 +163,10 @@ func (s *Segment) AppendBlob(blob []byte) (uint64, *appendError) {
 	return offset, nil
 }
 
-// GetMessage efficiently scans the log file to extract the message at the given offset.
+// getMessage efficiently scans the log file to extract the message at the given offset.
 //
 // Returns a *Message and an error
-func (s *Segment) GetMessage(offset uint64) (*Message, error) {
+func (s *Segment) getMessage(offset uint64) (*Message, error) {
 	pos := int64(0)
 
 	for {
@@ -192,7 +192,7 @@ func (s *Segment) GetMessage(offset uint64) (*Message, error) {
 				return nil, err
 			}
 
-			msg, err := DeserializeMessage(messageBuf)
+			msg, err := deserializeMessage(messageBuf)
 			if err != nil {
 				return msg, err
 			}

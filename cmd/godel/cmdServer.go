@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var commandRunServer = &cli.Command{
+var cmdRunServer = &cli.Command{
 	Name: "server",
 	Flags: []cli.Flag{
 		&cli.StringFlag{

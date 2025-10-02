@@ -24,7 +24,7 @@ type printableMessage struct {
 	ErrorMessage string  `json:"errorMessage,omitempty"`
 }
 
-var commandConsume = &cli.Command{
+var cmdConsume = &cli.Command{
 	Name: "consume",
 	Arguments: []cli.Argument{
 		&cli.StringArg{

@@ -74,8 +74,7 @@ func (c *consumerGroup) apendConsumer(id string, fromBeginning bool) (*consumer,
 		}
 	}
 
-	consumer := newConsumer(id, []*Partition{}, fromBeginning)
-	c.consumers = append(c.consumers, consumer)
+	consumer := c.newConsumer(id, []*Partition{}, fromBeginning)
 	return consumer, nil
 }
 

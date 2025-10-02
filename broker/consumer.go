@@ -9,6 +9,7 @@ import (
 // When the operation is done you can call .unlock().
 type consumer struct {
 	id            string
+	group         *consumerGroup
 	partitions    []*Partition
 	fromBeginning bool
 	started       bool
@@ -20,14 +21,18 @@ type consumer struct {
 	mu sync.Mutex
 }
 
-func newConsumer(id string, partitions []*Partition, fromBeginning bool) *consumer {
-	return &consumer{
+func (c *consumerGroup) newConsumer(id string, partitions []*Partition, fromBeginning bool) *consumer {
+	consumer := &consumer{
 		id:            id,
+		group:         c,
 		partitions:    partitions,
 		fromBeginning: fromBeginning,
 		stopCh:        make(chan struct{}),
 		stoppedCh:     make(chan struct{}),
 	}
+
+	c.consumers = append(c.consumers, consumer)
+	return consumer
 }
 
 func (c *consumer) lock() {
@@ -52,11 +57,10 @@ func (c *consumer) start(callback func(m *Message) error) error {
 	for i := range c.partitions {
 		j := i
 		go func() {
-			offset := uint64(0)
-			if c.fromBeginning {
+			offset := c.group.offsets[c.partitions[i].num] + 1 // consume next message
+
+			if offset == 0 && c.fromBeginning {
 				offset = c.partitions[j].getBaseOffset()
-			} else {
-				offset = c.partitions[j].getNextOffset()
 			}
 
 			err := c.partitions[j].consume(offset, func(message *Message) error {

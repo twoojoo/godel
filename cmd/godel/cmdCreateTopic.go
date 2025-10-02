@@ -11,7 +11,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var commandCreateTopic = &cli.Command{
+var cmdCreateTopic = &cli.Command{
 	Name: "add",
 	Arguments: []cli.Argument{
 		&cli.StringArg{

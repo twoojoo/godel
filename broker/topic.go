@@ -234,6 +234,7 @@ func (t *Topic) createConsumer(group, id string, fromBeginning bool) (*consumer,
 			name:      group,
 			topic:     t,
 			consumers: []*consumer{},
+			offsets:   map[uint32]uint64{},
 		}
 
 		t.consumerGroups[group] = &cg

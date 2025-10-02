@@ -24,7 +24,7 @@ func (c *Connection) CommitOffset(topic, group string, partition uint32, offset 
 	}
 
 	msg := &protocol.BaseRequest{
-		Cmd:           protocol.CmdProduce,
+		Cmd:           protocol.CmdOffsetCommit,
 		ApiVersion:    0,
 		CorrelationID: corrID,
 		Payload:       reqBuf,

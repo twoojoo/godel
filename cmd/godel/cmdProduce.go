@@ -13,7 +13,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var commandProduce = &cli.Command{
+var cmdProduce = &cli.Command{
 	Name: "produce",
 	Arguments: []cli.Argument{
 		&cli.StringArg{

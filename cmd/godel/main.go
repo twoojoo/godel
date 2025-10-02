@@ -12,13 +12,14 @@ func main() {
 	app := &cli.Command{
 		Name: "godel",
 		Commands: []*cli.Command{
-			commandRunServer,
-			commandConsume,
-			commandProduce,
+			cmdRunServer,
+			cmdConsume,
+			cmdProduce,
+			cmdCommitoffset,
 			{
 				Name: "topic",
 				Commands: []*cli.Command{
-					commandCreateTopic,
+					cmdCreateTopic,
 				},
 			},
 			{

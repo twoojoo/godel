@@ -30,7 +30,8 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [ ] Commit
     - [ ] Create consumer group
     - [ ] Delete consumer group
-- [ ] Consumer groups
+- [x] Consumer groups
+- [x] Consumer rebalancing
 - [ ] Consumer heartbeats
 - [ ] Full concurrency support (mutexes)
 - [ ] Empty key partition rotation (round robin)
@@ -44,7 +45,6 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [ ] Consumer groups distribution
     - [ ] Replication
     - [ ] Disaster recovery
-    - [ ] Consumer rebalancing
 - [ ] Golang client library
 - [ ] Fully functional CLI
 - [ ] Node.js client library

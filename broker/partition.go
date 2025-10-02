@@ -13,7 +13,7 @@ import (
 const errPartitionAlreadyExists = "partition.already.exists"
 
 type Partition struct {
-	newMessageCh  chan int
+	newMessageCh  chan struct{}
 	num           uint32
 	segments      []*Segment // guaranteed segments order by offset
 	topicOptions  *options.TopicOptions
@@ -39,7 +39,7 @@ func newPartition(id uint32, topicName string, topicOptions *options.TopicOption
 
 	return &Partition{
 		num:           id,
-		newMessageCh:  make(chan int),
+		newMessageCh:  make(chan struct{}),
 		topicName:     topicName,
 		topicOptions:  topicOptions,
 		brokerOptions: brokerOptions,
@@ -80,7 +80,7 @@ func loadPartition(id uint32, topicName string, topicOptions *options.TopicOptio
 
 	return &Partition{
 		num:           id,
-		newMessageCh:  make(chan int),
+		newMessageCh:  make(chan struct{}),
 		topicName:     topicName,
 		topicOptions:  topicOptions,
 		brokerOptions: brokerOptions,
@@ -148,6 +148,7 @@ func (p *Partition) push(message *Message) (uint64, error) {
 	}
 
 	message.offset = offset
+	p.newMessageCh <- struct{}{}
 	return offset, nil
 }
 

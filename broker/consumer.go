@@ -13,8 +13,9 @@ type consumer struct {
 	fromBeginning bool
 	started       bool
 
-	stoppedCh chan struct{}
-	stopCh    chan struct{}
+	stoppedCh    chan struct{}
+	stopCh       chan struct{}
+	newMessageCh chan struct{}
 
 	mu sync.Mutex
 }

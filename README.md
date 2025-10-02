@@ -18,7 +18,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
         - [x] delete
         - [ ] compact (latest message per key)
 - [x] Topics
-- [x] CLI 
+- [ ] CLI 
     - [x] Run server
     - [x] Create topics
     - [ ] Delete topics

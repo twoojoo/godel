@@ -1,4 +1,4 @@
-package godel
+package broker
 
 import (
 	"errors"

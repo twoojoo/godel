@@ -1,4 +1,4 @@
-package godel
+package broker
 
 import (
 	"encoding/binary"
@@ -236,10 +236,13 @@ func (s *Segment) runMaxRetentionMilliCheck(now uint64, mrm int64) (bool, error)
 		return false, err
 	}
 
-	fmt.Println(time.Unix(int64(now), 0))
-	fmt.Println(time.Unix(int64(lastMessage.timestamp), 0))
+	// fmt.Println(time.Unix(int64(now), 0))
+	// fmt.Println())
 	fmt.Println(time.Duration(mrm) * time.Millisecond)
 
-	expired := now-lastMessage.timestamp > uint64(mrm)
+	messageAge := time.Unix(int64(now), 0).Sub(time.Unix(int64(lastMessage.timestamp), 0))
+	expired := messageAge > time.Duration(mrm)*time.Millisecond
+
+	// expired := now-lastMessage.timestamp > uint64(mrm)
 	return expired, nil
 }

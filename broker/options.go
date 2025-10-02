@@ -1,10 +1,15 @@
 package broker
 
-import "time"
+import (
+	"os"
+	"time"
 
-type CleanupPolicy int
+	yaml "github.com/goccy/go-yaml"
+)
 
-var CleanupPolicyDelete CleanupPolicy = 0
+type CleanupPolicy string
+
+var CleanupPolicyDelete CleanupPolicy = "delete"
 
 type TopicOptions struct {
 	NumPartitions   uint32        `json:"num.partitions"`
@@ -83,4 +88,31 @@ func (b *BrokerOptions) WithBasePath(p string) *BrokerOptions {
 func (b *BrokerOptions) WithLogRetentionCheckInterval(d time.Duration) *BrokerOptions {
 	b.LogRetentionCheckIntervalMilli = d.Milliseconds()
 	return b
+}
+
+func LoadBrokerOptionsFromYaml(path string) (*BrokerOptions, error) {
+	blob, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var opts BrokerOptions
+	err = yaml.Unmarshal(blob, &opts)
+	if err != nil {
+		return nil, err
+	}
+
+	mergeBrokerOptions(&opts, DeafaultBrokerOptions())
+
+	return &opts, nil
+}
+
+func mergeBrokerOptions(o1, o2 *BrokerOptions) {
+	if o1.BasePath == "" {
+		o1.BasePath = o2.BasePath
+	}
+
+	if o1.LogRetentionCheckIntervalMilli == 0 {
+		o1.LogRetentionCheckIntervalMilli = o2.LogRetentionCheckIntervalMilli
+	}
 }

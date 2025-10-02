@@ -110,3 +110,7 @@ func (b *Broker) Produce(topic string, message *Message) (uint64, error) {
 
 	return 0, errors.New(errTopicNotFound)
 }
+
+func (b *Broker) Run(port int) {
+	b.runServer(port)
+}

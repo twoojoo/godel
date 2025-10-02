@@ -27,7 +27,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [ ] Edit topics
     - [x] Produce
     - [x] Consume
-    - [ ] Commit
+    - [x] Commit
     - [ ] Create consumer group
     - [ ] Delete consumer group
 - [x] Consumer groups

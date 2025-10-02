@@ -32,3 +32,4 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [ ] Golang client library
 - [ ] Fully functional CLI
 - [ ] Node.js client library
+- [ ] Python client library

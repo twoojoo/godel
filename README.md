@@ -16,16 +16,19 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [x] CLI
     - [x] Run server
     - [x] Create topics
-    - [x] Delete topics
-    - [x] Edit topics
+    - [ ] Delete topics
+    - [ ] Edit topics
     - [x] Produce
     - [ ] Consume
+- [ ] Empty key round robin
 - [ ] Consumer
 - [ ] Write Ahead Log
 - [ ] Log segments sparse indexes
 - [ ] CRC on messages/batches
 - [ ] Message batching
-- [ ] Distributed (with Raft consensus)
+- [ ] Fully Distributed
+    - [ ] Raft consensus
+    - [ ] Replication
 - [ ] Golang client library
 - [ ] Fully functional CLI
 - [ ] Node.js client library

@@ -4,14 +4,14 @@ An attemp to write a ligthweight kafka-like distributed log in golang.
 
 ## Why Go?
 
-My main goal is to learn how to build a distributed log and Golang allows me to bypass a lot of "language logic" by providing great cuncurrency support, mutexes, etc... When the implementation is done, I may consider rewriting the project in a more performant language.
+My main goal is to learn how to build a distributed log and Golang allows me to bypass a lot of "language logic" by providing great concurrency support, mutexes, etc... When the implementation is done, I may consider rewriting the project in a more performant language.
 
 ## Roadmap
 
 - [x] Message serialization and storage
 - [x] Log Segments
 - [x] Partitions
-- [x] Rention Logic
+- [x] Rentention Logic
 - [x] Topics
 - [x] CLI
     - [x] Run server
@@ -21,12 +21,13 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [x] Produce
     - [ ] Consume
 - [x] Dockerfile
-- [ ] Empty key partition rotation
+- [ ] Full concurrency support (mutexes)
+- [ ] Empty key partition rotation (round robin)
 - [ ] Consumer
 - [ ] Write Ahead Log
-- [ ] Log segments sparse indexes
-- [ ] CRC on messages/batches
-- [ ] Message batching
+- [ ] Log segments sparse indexes (faster random access)
+- [ ] CRC on messages/batches (corruption detection)
+- [ ] Message batching (increased write performance)
 - [ ] Fully Distributed
     - [ ] Raft consensus
     - [ ] Replication

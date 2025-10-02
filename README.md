@@ -20,6 +20,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [ ] Edit topics
     - [x] Produce
     - [ ] Consume
+- [x] Dockerfile
 - [ ] Empty key partition rotation
 - [ ] Consumer
 - [ ] Write Ahead Log
@@ -33,3 +34,4 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [ ] Fully functional CLI
 - [ ] Node.js client library
 - [ ] Python client library
+- [ ] Kubernetes manifests

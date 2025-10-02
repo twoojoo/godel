@@ -23,7 +23,6 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [x] Dockerfile (basic)
 - [ ] Full concurrency support (mutexes)
 - [ ] Empty key partition rotation (round robin)
-- [ ] Consumer
 - [ ] Write Ahead Log
 - [ ] Log segments sparse indexes (faster random access)
 - [ ] CRC on messages/batches (corruption detection)
@@ -33,6 +32,8 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [ ] Partitions distribution
     - [ ] Replication
     - [ ] Disaster recovery
+    - [ ] Consumer groups
+    - [ ] Consumer rebalancing
 - [ ] Golang client library
 - [ ] Fully functional CLI
 - [ ] Node.js client library

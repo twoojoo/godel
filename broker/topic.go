@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"godel/options"
 	"log/slog"
 	"os"
 )
@@ -14,8 +15,8 @@ const errPartitionsNumMismatch = "num.partition.mismatch"
 type Topic struct {
 	name          string
 	partitions    []*Partition
-	options       *TopicOptions
-	brokerOptions *BrokerOptions
+	options       *options.TopicOptions
+	brokerOptions *options.BrokerOptions
 	consumers     []*TopicConsumer
 }
 
@@ -47,7 +48,7 @@ func (t *Topic) loadOptions() error {
 		return err
 	}
 
-	var topicOptions TopicOptions
+	var topicOptions options.TopicOptions
 	err = json.Unmarshal(optsBytes, &topicOptions)
 	if err != nil {
 		return err
@@ -57,7 +58,7 @@ func (t *Topic) loadOptions() error {
 	return nil
 }
 
-func newTopic(name string, topicOptions *TopicOptions, brokerOptions *BrokerOptions) (*Topic, error) {
+func newTopic(name string, topicOptions *options.TopicOptions, brokerOptions *options.BrokerOptions) (*Topic, error) {
 	topicPath := fmt.Sprintf("%s/%s", brokerOptions.BasePath, name)
 	// topicOptsPath := fmt.Sprintf("%s/%s/options.json", brokerOptions.BasePath, name)
 
@@ -108,7 +109,7 @@ func (t *Topic) initializePartitions() error {
 	return nil
 }
 
-func loadTopic(name string, brokerOptions *BrokerOptions, newTopicOptions *TopicOptions) (*Topic, error) {
+func loadTopic(name string, brokerOptions *options.BrokerOptions, newTopicOptions *options.TopicOptions) (*Topic, error) {
 	topicPath := fmt.Sprintf("%s/%s", brokerOptions.BasePath, name)
 
 	if _, err := os.Stat(topicPath); os.IsNotExist(err) {
@@ -184,7 +185,7 @@ func loadTopic(name string, brokerOptions *BrokerOptions, newTopicOptions *Topic
 	return topic, nil
 }
 
-func (t *Topic) Options() *TopicOptions {
+func (t *Topic) Options() *options.TopicOptions {
 	return t.options
 }
 

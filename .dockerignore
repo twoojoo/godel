@@ -1,0 +1,8 @@
+bin
+.vscode
+godel
+godel_data
+test
+.gitignore
+fix-history.sh
+README.md

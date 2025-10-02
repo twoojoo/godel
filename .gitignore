@@ -2,3 +2,6 @@ test
 .vscode
 fix-history.sh
 ./godel
+godel
+bin
+godel_data

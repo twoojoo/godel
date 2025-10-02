@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"godel/options"
 	"log/slog"
 	"time"
 )
@@ -51,7 +52,7 @@ func (b *Broker) runRetentionCheck() {
 						"expired", expired,
 					)
 
-					if expired && cleanupPolicy == CleanupPolicyDelete {
+					if expired && cleanupPolicy == options.CleanupPolicyDelete {
 						err = b.topics[i].partitions[j].deleteSegment(k)
 						if err != nil {
 							slog.Error("failed retention.ms check segment deletion",
@@ -80,7 +81,7 @@ func (b *Broker) runRetentionCheck() {
 						break
 					}
 
-					if cleanupPolicy == CleanupPolicyDelete {
+					if cleanupPolicy == options.CleanupPolicyDelete {
 						err := b.topics[i].partitions[j].deleteSegment(k)
 						if err != nil {
 							slog.Error("failed retention.bytes check segment deletion",

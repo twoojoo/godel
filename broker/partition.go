@@ -3,6 +3,7 @@ package broker
 import (
 	"errors"
 	"fmt"
+	"godel/options"
 	"io"
 	"log/slog"
 	"os"
@@ -15,12 +16,12 @@ type Partition struct {
 	newMessageCh  chan int
 	num           uint32
 	segments      []*Segment // guaranteed segments order by offset
-	topicOptions  *TopicOptions
-	brokerOptions *BrokerOptions
+	topicOptions  *options.TopicOptions
+	brokerOptions *options.BrokerOptions
 	topicName     string
 }
 
-func newPartition(id uint32, topicName string, topicOptions *TopicOptions, brokerOptions *BrokerOptions) (*Partition, error) {
+func newPartition(id uint32, topicName string, topicOptions *options.TopicOptions, brokerOptions *options.BrokerOptions) (*Partition, error) {
 	partitionPath := fmt.Sprintf("%s/%s/%v", brokerOptions.BasePath, topicName, id)
 
 	if _, err := os.Stat(partitionPath); os.IsNotExist(err) {
@@ -45,7 +46,7 @@ func newPartition(id uint32, topicName string, topicOptions *TopicOptions, broke
 	}, nil
 }
 
-func loadPartition(id uint32, topicName string, topicOptions *TopicOptions, brokerOptions *BrokerOptions) (*Partition, error) {
+func loadPartition(id uint32, topicName string, topicOptions *options.TopicOptions, brokerOptions *options.BrokerOptions) (*Partition, error) {
 	partitionPath := fmt.Sprintf("%s/%s/%v", brokerOptions.BasePath, topicName, id)
 
 	if _, err := os.Stat(partitionPath); os.IsNotExist(err) {

@@ -1,4 +1,4 @@
-package broker
+package options
 
 import (
 	"os"
@@ -18,7 +18,6 @@ type TopicOptions struct {
 	RetentionBytes  int32         `json:"retention.bytes"`
 	SegmentBytes    int32         `json:"segment.bytes"`
 	MaxMessageBytes int32         `json:"max.message.bytes"`
-	// Partitioner           func(key []byte, n uint32) uint32
 }
 
 func DefaultTopicOptions() *TopicOptions {
@@ -63,10 +62,31 @@ func (t *TopicOptions) WithMaxMessageBytes(b int32) *TopicOptions {
 	return t
 }
 
-// func (t *TopicOptions) WithCustomPartitioner(p func(key []byte, n uint32) uint32) *TopicOptions {
-// 	t.Partitioner = p
-// 	return t
-// }
+func MergeTopicOptions(o1, o2 *TopicOptions) {
+	if o1.NumPartitions == 0 {
+		o1.NumPartitions = o2.NumPartitions
+	}
+
+	if o1.CleanupPolicy == "" {
+		o1.CleanupPolicy = o2.CleanupPolicy
+	}
+
+	if o1.RetentionMilli == 0 {
+		o1.RetentionMilli = o2.RetentionMilli
+	}
+
+	if o1.RetentionBytes == 0 {
+		o1.RetentionBytes = o2.RetentionBytes
+	}
+
+	if o1.SegmentBytes == 0 {
+		o1.SegmentBytes = o2.SegmentBytes
+	}
+
+	if o1.MaxMessageBytes == 0 {
+		o1.MaxMessageBytes = o2.MaxMessageBytes
+	}
+}
 
 type BrokerOptions struct {
 	BasePath                       string `json:"base.path"`
@@ -75,7 +95,7 @@ type BrokerOptions struct {
 
 func DeafaultBrokerOptions() *BrokerOptions {
 	return &BrokerOptions{
-		BasePath:                       "./godel",
+		BasePath:                       "./godel_data",
 		LogRetentionCheckIntervalMilli: 300000, // 5 mins
 	}
 }
@@ -102,12 +122,12 @@ func LoadBrokerOptionsFromYaml(path string) (*BrokerOptions, error) {
 		return nil, err
 	}
 
-	mergeBrokerOptions(&opts, DeafaultBrokerOptions())
+	MergeBrokerOptions(&opts, DeafaultBrokerOptions())
 
 	return &opts, nil
 }
 
-func mergeBrokerOptions(o1, o2 *BrokerOptions) {
+func MergeBrokerOptions(o1, o2 *BrokerOptions) {
 	if o1.BasePath == "" {
 		o1.BasePath = o2.BasePath
 	}

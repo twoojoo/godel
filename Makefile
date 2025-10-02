@@ -1,7 +1,6 @@
-run: 
-	@LOG_LEVEL=debug go run *.go
+build:
+	@go build -o bin/godel cmd/godel/*.go
 
-clear-test:
-	@rm -rf ./test
+build-image:
+	@docker build -t godel:${tag} .
 
-clear-run: clear-test run

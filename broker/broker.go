@@ -2,17 +2,19 @@ package broker
 
 import (
 	"errors"
+	"godel/options"
+	"log/slog"
 	"os"
 )
 
 const errTopicNotFound = "topic.not.found"
 
 type Broker struct {
-	options *BrokerOptions
+	options *options.BrokerOptions
 	topics  []*Topic
 }
 
-func NewBroker(opts ...*BrokerOptions) (*Broker, error) {
+func NewBroker(opts ...*options.BrokerOptions) (*Broker, error) {
 	readyCh := make(chan struct{})
 	errorCh := make(chan error)
 
@@ -20,7 +22,7 @@ func NewBroker(opts ...*BrokerOptions) (*Broker, error) {
 
 	go func() {
 		if len(opts) == 0 {
-			opts = append(opts, DeafaultBrokerOptions())
+			opts = append(opts, options.DeafaultBrokerOptions())
 		}
 
 		broker = Broker{
@@ -77,9 +79,23 @@ func (b *Broker) loadTopics() ([]*Topic, error) {
 	return topics, nil
 }
 
-func (b *Broker) GetOrCreateTopic(name string, opts ...*TopicOptions) (*Topic, error) {
+func (b *Broker) CreateTopic(name string, opts ...*options.TopicOptions) (*Topic, error) {
 	if len(opts) == 0 {
-		opts = append(opts, DefaultTopicOptions())
+		opts = append(opts, options.DefaultTopicOptions())
+	}
+
+	topic, err := newTopic(name, opts[0], b.options)
+	if err != nil {
+		return nil, err
+	}
+
+	b.topics = append(b.topics, topic)
+	return topic, nil
+}
+
+func (b *Broker) GetOrCreateTopic(name string, opts ...*options.TopicOptions) (*Topic, error) {
+	if len(opts) == 0 {
+		opts = append(opts, options.DefaultTopicOptions())
 	}
 
 	topic, err := newTopic(name, opts[0], b.options)
@@ -111,6 +127,10 @@ func (b *Broker) Produce(topic string, message *Message) (uint64, error) {
 	return 0, errors.New(errTopicNotFound)
 }
 
-func (b *Broker) Run(port int) {
-	b.runServer(port)
+func (b *Broker) Run(port int) error {
+	err := b.runServer(port)
+	if err != nil {
+		slog.Error("error while starting server", "error", err)
+	}
+	return err
 }

@@ -30,7 +30,9 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [ ] Message batching (increased write performance)
 - [ ] Fully Distributed
     - [ ] Raft consensus
+    - [ ] Partitions distribution
     - [ ] Replication
+    - [ ] Disaster recovery
 - [ ] Golang client library
 - [ ] Fully functional CLI
 - [ ] Node.js client library

@@ -174,6 +174,22 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		}
 
 		return buf, nil
+	case protocol.CmdOffsetCommit:
+		req, err := protocol.DeserializeCommitOffsetRequest(r.Payload)
+		if err != nil {
+			return nil, errors.New("failed to deserialize request")
+		}
+
+		resp := b.processCommitOffsetRequest(req)
+		if resp == nil {
+			return nil, nil
+		}
+		buf, err := resp.Serialize()
+		if err != nil {
+			return nil, err
+		}
+
+		return buf, nil
 	default:
 		return nil, errors.New("unknonw command " + strconv.Itoa(int(r.Cmd)))
 	}
@@ -333,16 +349,16 @@ func (b *Broker) processListConsumerGroupsReq(req *protocol.ReqListConsumerGroup
 
 	for k := range groups {
 		consumers := []protocol.Consumer{}
+		offsets := []protocol.ConsumerGroupOffset{}
+
+		for partition := range groups[k].offsets {
+			offsets = append(offsets, protocol.ConsumerGroupOffset{
+				Partition: partition,
+				Offset:    groups[k].offsets[partition],
+			})
+		}
+
 		for i := range groups[k].consumers {
-			offsets := []protocol.ConsumerGroupOffset{}
-
-			for partition := range groups[k].offsets {
-				offsets = append(offsets, protocol.ConsumerGroupOffset{
-					Partition: partition,
-					Offset:    groups[k].offsets[partition],
-				})
-			}
-
 			consumers = append(consumers, protocol.Consumer{
 				ID: groups[k].consumers[i].id,
 			})
@@ -351,7 +367,31 @@ func (b *Broker) processListConsumerGroupsReq(req *protocol.ReqListConsumerGroup
 		resp.Groups = append(resp.Groups, protocol.ConsumerGroup{
 			Name:      groups[k].name,
 			Consumers: consumers,
+			Offsets:   offsets,
 		})
+	}
+
+	return resp
+}
+
+func (b *Broker) processCommitOffsetRequest(req *protocol.ReqCommitOffset) *protocol.RespCommitOffset {
+	resp := &protocol.RespCommitOffset{
+		Partition: &req.Partition,
+		Offset:    &req.Offset,
+	}
+
+	topic, err := b.GetTopic(req.Topic)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
+	}
+
+	err = topic.commitOffset(req.Group, req.Partition, req.Offset)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
 	}
 
 	return resp

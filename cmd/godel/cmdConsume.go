@@ -42,6 +42,10 @@ var commandConsume = &cli.Command{
 		&cli.BoolFlag{
 			Name: "json",
 		},
+		&cli.Int32Flag{
+			Name:    "number",
+			Aliases: []string{"n"},
+		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) (err error) {
 		topic := cmd.StringArg("topic")
@@ -50,6 +54,10 @@ var commandConsume = &cli.Command{
 		}
 
 		group := cmd.String("group")
+
+		maxMessages := cmd.Int32("number")
+
+		consumerID := uuid.NewString()
 
 		corrID, err := client.GenerateCorrelationID()
 		if err != nil {
@@ -61,7 +69,38 @@ var commandConsume = &cli.Command{
 			return err
 		}
 
+		var alreadyClosed bool
+
+		close := func() {
+			if alreadyClosed {
+				return
+			}
+
+			conn, err := client.ConnectToBroker(getAddr(cmd))
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			if group == "" {
+				consumerID = consumerID + "-" + consumerID
+			} else {
+				consumerID = group + "-" + consumerID
+			}
+
+			fmt.Println("disconnecting consumer...")
+			resp, err := conn.DeleteConsumer(topic, group, consumerID)
+			if err != nil {
+				fmt.Println(err)
+			}
+			if resp.ErrorCode != 0 {
+				fmt.Println("Unxexpected Error:", resp.ErrorMessage)
+			}
+
+			alreadyClosed = true
+		}
+
 		go func() {
+			count := 0
 			conn.ReadMessage(func(r *protocol.BaseResponse) error {
 				if corrID != r.CorrelationID {
 					return nil
@@ -73,6 +112,13 @@ var commandConsume = &cli.Command{
 				}
 
 				for i := range resp.Messages {
+					if count >= int(maxMessages) && maxMessages != 0 {
+						close()
+						os.Exit(0)
+					}
+
+					count++
+
 					if cmd.Bool("json") {
 						m := printableMessage{
 							Key:          string(resp.Messages[i].Key),
@@ -105,8 +151,6 @@ var commandConsume = &cli.Command{
 			})
 		}()
 
-		consumerID := uuid.NewString()
-
 		req := protocol.ReqConsume{
 			ID:            consumerID,
 			Topic:         topic,
@@ -126,27 +170,7 @@ var commandConsume = &cli.Command{
 			Payload:       reqBuf,
 		}
 
-		if group == "" {
-			consumerID = consumerID + "-" + consumerID
-		} else {
-			consumerID = group + "-" + consumerID
-		}
-
-		onShutdown(func() {
-			conn, err := client.ConnectToBroker(getAddr(cmd))
-			if err != nil {
-				fmt.Println(err)
-			}
-
-			fmt.Println("disconnecting consumer...")
-			resp, err := conn.DeleteConsumer(topic, group, consumerID)
-			if err != nil {
-				fmt.Println(err)
-			}
-			if resp.ErrorCode != 0 {
-				fmt.Println("Unxexpected Error:", resp.ErrorMessage)
-			}
-		})
+		onShutdown(close)
 
 		err = conn.SendMessage(msg)
 		if err != nil {

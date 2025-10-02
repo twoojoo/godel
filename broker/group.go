@@ -102,3 +102,9 @@ func (c *consumerGroup) removeConsumer(id string) error {
 	c.consumers = slices.Delete(c.consumers, i, i+1)
 	return nil
 }
+
+// MUST lock the consumer group before committing offset!
+func (c *consumerGroup) commitOffset(partition uint32, offset uint64) error {
+	c.offsets[partition] = offset
+	return nil
+}

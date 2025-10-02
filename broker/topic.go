@@ -299,3 +299,19 @@ func (t *Topic) removeConsumer(group string, id string) error {
 func (t *Topic) listConsumerGroups() map[string]*consumerGroup {
 	return t.consumerGroups
 }
+
+func (t *Topic) commitOffset(group string, partition uint32, offset uint64) error {
+	if _, ok := t.consumerGroups[group]; !ok {
+		return errors.New(errConsumerGroupNotFound)
+	}
+
+	t.consumerGroups[group].lock()
+	defer t.consumerGroups[group].unlock()
+
+	err := t.consumerGroups[group].commitOffset(partition, offset)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -20,7 +20,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [ ] Edit topics
     - [x] Produce
     - [ ] Consume
-- [ ] Empty key round robin
+- [ ] Empty key partition rotation
 - [ ] Consumer
 - [ ] Write Ahead Log
 - [ ] Log segments sparse indexes

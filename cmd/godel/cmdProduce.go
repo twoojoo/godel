@@ -72,6 +72,7 @@ var commandProduce = &cli.Command{
 
 		for {
 			reader := bufio.NewReader(os.Stdin)
+			print(" > ")
 			input, err := reader.ReadString('\n')
 			if err != nil {
 				fmt.Println("error", err)

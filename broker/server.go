@@ -65,7 +65,7 @@ func (b *Broker) handleConnection(conn net.Conn) {
 
 		respPayload, err := b.processRequest(req, responder)
 		if err != nil {
-			// should respond with some error here
+			slog.Error("error while processing request", "error", err)
 			continue
 		}
 		if respPayload == nil {
@@ -76,6 +76,7 @@ func (b *Broker) handleConnection(conn net.Conn) {
 			CorrelationID: req.CorrelationID,
 			Payload:       respPayload,
 		}
+
 		err = writeFull(writer, resp.Serialize())
 		if err != nil {
 			slog.Error("failed to send response to client")
@@ -128,8 +129,28 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		}
 
 		return b.processConsumeReq(r.CorrelationID, req, responder)
+	case protocol.CmdLeaveGroup:
+		req, err := protocol.DeserializeRequestDeleteConsumer(r.Payload)
+		if err != nil {
+			return nil, errors.New("failed to deserialize request")
+		}
+
+		return b.processDeleteConsumerReq(req)
+	case protocol.CmdListGroups:
+		req, err := protocol.DeserializeReqListConsumerGroups(r.Payload)
+		if err != nil {
+			return nil, errors.New("failed to deserialize request")
+		}
+
+		resp := b.processListConsumerGroupsReq(req)
+		buf, err := resp.Serialize()
+		if err != nil {
+			return nil, err
+		}
+
+		return buf, nil
 	default:
-		return nil, errors.New("unknonw command")
+		return nil, errors.New("unknonw command " + strconv.Itoa(int(r.Cmd)))
 	}
 }
 
@@ -200,11 +221,14 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 		return nil, err
 	}
 
-	err = topic.Consume(0, func(message *Message) error {
+	consumer := topic.createConsumer(req.Group, req.FromBeginning)
+
+	err = consumer.start(func(message *Message) error {
 		r := protocol.RespConsume{
 			Messages: []protocol.RespConsumeMessage{
 				{
 					Key:       string(message.key),
+					Group:     req.Group,
 					Partition: &message.partition,
 					Offset:    &message.offset,
 					Payload:   message.payload,
@@ -224,9 +248,73 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 
 		return responder(&resp)
 	})
+
+	return nil, err
+}
+
+func (b *Broker) processDeleteConsumerReq(req *protocol.ReqDeleteConsumer) ([]byte, error) {
+	resp := protocol.RespDeleteConsumer{
+		ID:    req.ID,
+		Group: req.Group,
+		Topic: req.Topic,
+	}
+
+	topic, err := b.GetTopic(req.Topic)
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	err = topic.removeConsumer(req.Group, req.ID)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+	}
+
+	respBuf, err := resp.Serialize()
+	if err != nil {
+		return nil, err
+	}
+
+	return respBuf, nil
+}
+
+func (b *Broker) processListConsumerGroupsReq(req *protocol.ReqListConsumerGroups) *protocol.RespListConsumerGroups {
+	resp := &protocol.RespListConsumerGroups{
+		Groups: []protocol.ConsumerGroup{},
+	}
+
+	topic, err := b.GetTopic(req.Topic)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
+	}
+
+	groups := topic.listConsumerGroups()
+
+	for k := range groups {
+		consumers := []protocol.Consumer{}
+		for i := range groups[k].consumers {
+			offsets := []protocol.ConsumerOffset{}
+
+			for partition := range groups[k].consumers[i].offsets {
+				offsets = append(offsets, protocol.ConsumerOffset{
+					Partition: partition,
+					Offset:    groups[k].consumers[i].offsets[partition],
+				})
+			}
+
+			consumers = append(consumers, protocol.Consumer{
+				ID:      groups[k].consumers[i].id,
+				Offsets: offsets,
+			})
+		}
+
+		resp.Groups = append(resp.Groups, protocol.ConsumerGroup{
+			Name:      groups[k].name,
+			Consumers: consumers,
+		})
+	}
+
+	return resp
 }

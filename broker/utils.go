@@ -1,6 +1,9 @@
 package broker
 
-import "strconv"
+import (
+	"math/rand"
+	"strconv"
+)
 
 func strSliceToUint32(str []string) ([]uint32, error) {
 	nums := make([]uint32, 0, len(str))
@@ -28,4 +31,11 @@ func strSliceToUint64(str []string) ([]uint64, error) {
 	}
 
 	return nums, nil
+}
+
+func shuffleSlice[T any](slice []T) {
+	for i := len(slice) - 1; i > 0; i-- {
+		j := rand.Intn(i + 1) // random index from 0 to i
+		slice[i], slice[j] = slice[j], slice[i]
+	}
 }

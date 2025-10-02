@@ -7,17 +7,22 @@ import (
 	"godel/options"
 	"log/slog"
 	"os"
+
+	"github.com/google/uuid"
 )
 
 const errTopicAlreadyExists = "topic.already.exists"
 const errPartitionsNumMismatch = "num.partition.mismatch"
+const errConsumerGroupNotFound = "consumer.group.not.found"
+const errConsumerNotFound = "consumer.not.found"
 
 type Topic struct {
-	name          string
-	partitions    []*Partition
-	options       *options.TopicOptions
-	brokerOptions *options.BrokerOptions
-	consumers     []*TopicConsumer
+	name           string
+	partitions     []*Partition
+	options        *options.TopicOptions
+	brokerOptions  *options.BrokerOptions
+	consumerGroups map[string]*consumerGroup
+	// consumers     []*TopicConsumer
 }
 
 func (t *Topic) persistOptions() error {
@@ -123,10 +128,10 @@ func loadTopic(name string, brokerOptions *options.BrokerOptions, newTopicOption
 	}
 
 	topic := &Topic{
-		name:          name,
-		brokerOptions: brokerOptions,
-		options:       newTopicOptions,
-		consumers:     []*TopicConsumer{},
+		name:           name,
+		brokerOptions:  brokerOptions,
+		options:        newTopicOptions,
+		consumerGroups: map[string]*consumerGroup{},
 	}
 
 	if newTopicOptions != nil {
@@ -207,11 +212,72 @@ func (t *Topic) produce(message *Message) (uint64, uint32, error) {
 	return offset, partitionNumber, nil
 }
 
-func (t *Topic) Consume(offset uint64, callback func(message *Message) error) error {
-	// temp consume from first partition only
-	return t.partitions[0].consume(offset, callback)
+// func (t *Topic) Consume(offset uint64) error {
+// 	// temp consume from first partition only
+// 	return t.partitions[0].consume(offset, callback)
+// }
+
+func (t *Topic) createConsumer(group string, fromBeginning bool) *consumer {
+	if group == "" { // generate new group when group is not specified
+		group = uuid.NewString()
+	}
+
+	if cg, ok := t.consumerGroups[group]; ok {
+		cg.stop()
+	} else {
+		cg := consumerGroup{
+			name:      group,
+			topic:     t,
+			consumers: []*consumer{},
+		}
+
+		t.consumerGroups[group] = &cg
+	}
+
+	t.consumerGroups[group].lock()
+	defer t.consumerGroups[group].unlock()
+
+	consumer := t.consumerGroups[group].apendConsumer(fromBeginning)
+
+	slog.Info("consumer crated, consumer group rebalancing",
+		"group", group,
+		"consumers", len(t.consumerGroups[group].consumers),
+		"consumer", consumer.id,
+	)
+
+	t.consumerGroups[group].rebalance()
+
+	slog.Info("rebalancing done", "group", group)
+	return consumer
 }
 
-// func (t *Topic) registerConsumer(consumer *TopicConsumer) {
-// 	t.consumers = append(t.consumers, consumer)
-// }
+func (t *Topic) removeConsumer(group string, id string) error {
+	if _, ok := t.consumerGroups[group]; !ok {
+		return errors.New(errConsumerGroupNotFound)
+	}
+
+	t.consumerGroups[group].stop()
+
+	t.consumerGroups[group].lock()
+	defer t.consumerGroups[group].unlock()
+
+	err := t.consumerGroups[group].removeConsumer(id)
+	if err != nil {
+		return err
+	}
+
+	slog.Info("consumer removed, consumer group rebalancing",
+		"group", group,
+		"consumers", len(t.consumerGroups[group].consumers),
+		"consumer", id,
+	)
+
+	t.consumerGroups[group].rebalance()
+
+	slog.Info("rebalancing done", "group", group)
+	return nil
+}
+
+func (t *Topic) listConsumerGroups() map[string]*consumerGroup {
+	return t.consumerGroups
+}

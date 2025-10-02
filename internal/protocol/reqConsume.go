@@ -6,6 +6,7 @@ import (
 
 type ReqConsume struct {
 	Topic         string `json:"topic"`
+	Group         string `json:"group"`
 	FromBeginning bool   `json:"fromBeginning"`
 	TimeoutMs     uint64 `json:"timeoutMs"`
 }

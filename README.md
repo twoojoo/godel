@@ -27,7 +27,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [x] Produce
     - [ ] Consume
     - [ ] Commit
-- [x] Dockerfile (basic)
+- [ ] Consumer heartbeats
 - [ ] Full concurrency support (mutexes)
 - [ ] Empty key partition rotation (round robin)
 - [ ] Write Ahead Log
@@ -45,4 +45,5 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [ ] Fully functional CLI
 - [ ] Node.js client library
 - [ ] Python client library
+- [x] Dockerfile (basic)
 - [ ] Kubernetes manifests

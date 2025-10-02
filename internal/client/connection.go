@@ -2,9 +2,12 @@ package client
 
 import (
 	"bufio"
+	"errors"
 	"godel/internal/protocol"
 	"net"
 )
+
+var errCloseConnection = errors.New("close.connection")
 
 type Connection struct {
 	reader *bufio.Reader
@@ -43,6 +46,12 @@ func (c *Connection) ReadMessage(cb func(r *protocol.BaseResponse) error) error 
 			return err
 		}
 
-		cb(msg)
+		err = cb(msg)
+
+		if err == errCloseConnection {
+			break
+		}
 	}
+
+	return nil
 }

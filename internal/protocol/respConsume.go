@@ -10,6 +10,7 @@ type RespConsume struct {
 
 type RespConsumeMessage struct {
 	Key          string  `json:"key"`
+	Group        string  `json:"conumerGroup"`
 	Partition    *uint32 `json:"partition,omitempty"`
 	Offset       *uint64 `json:"offset,omitempty"`
 	Payload      []byte  `json:"payload"`

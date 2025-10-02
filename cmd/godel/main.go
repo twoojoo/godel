@@ -21,6 +21,18 @@ func main() {
 					commandCreateTopic,
 				},
 			},
+			{
+				Name: "consumer",
+				Commands: []*cli.Command{
+					cmdDeleteConsumer,
+				},
+			},
+			{
+				Name: "group",
+				Commands: []*cli.Command{
+					cmdListConsumerGroups,
+				},
+			},
 		},
 	}
 

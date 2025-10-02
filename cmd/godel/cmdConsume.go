@@ -28,6 +28,10 @@ var commandConsume = &cli.Command{
 		},
 	},
 	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "group",
+			Aliases: []string{"g"},
+		},
 		&cli.BoolFlag{
 			Name: "fromBeginning",
 		},
@@ -37,6 +41,11 @@ var commandConsume = &cli.Command{
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) (err error) {
 		topic := cmd.StringArg("topic")
+		if topic == "" {
+			return errors.New("topic must be provided")
+		}
+
+		group := cmd.String("group")
 		if topic == "" {
 			return errors.New("topic must be provided")
 		}
@@ -97,6 +106,7 @@ var commandConsume = &cli.Command{
 
 		req := protocol.ReqConsume{
 			Topic:         topic,
+			Group:         group,
 			FromBeginning: cmd.Bool("fromBeginning"),
 		}
 

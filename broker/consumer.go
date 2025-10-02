@@ -1,21 +1,46 @@
 package broker
 
-import "github.com/google/uuid"
+import (
+	"sync"
 
-type TopicConsumer struct {
-	id         string
-	partitions []*Partition
-	stopCh     chan struct{}
+	"github.com/google/uuid"
+)
+
+// Any modification to the consumer object must
+// e done after locking it with the .lock() method.
+// When the operation is done you can call .unlock().
+type consumer struct {
+	id            string
+	partitions    []*Partition
+	offsets       map[uint32]uint64
+	fromBeginning bool
+
+	stoppedCh chan struct{}
+	stopCh    chan struct{}
+
+	mu sync.Mutex
 }
 
-func NewTopicConsumer(partitions []*Partition) *TopicConsumer {
-	return &TopicConsumer{
-		id:         uuid.NewString(),
-		partitions: partitions,
+func newConsumer(partitions []*Partition, fromBeginning bool) *consumer {
+	return &consumer{
+		id:            uuid.NewString(),
+		partitions:    partitions,
+		fromBeginning: fromBeginning,
 	}
 }
 
-func (c *TopicConsumer) Consume(fromBeginning bool, callback func(m *Message) error) error {
+func (c *consumer) lock() {
+	c.mu.Lock()
+}
+
+func (c *consumer) unlock() {
+	c.mu.Unlock()
+}
+
+func (c *consumer) start(callback func(m *Message) error) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	messageCh := make(chan *Message)
 	errorCh := make(chan error)
 
@@ -23,7 +48,7 @@ func (c *TopicConsumer) Consume(fromBeginning bool, callback func(m *Message) er
 		j := i
 		go func() {
 			offset := uint64(0)
-			if fromBeginning {
+			if c.fromBeginning {
 				offset = c.partitions[j].getBaseOffset()
 			} else {
 				offset = c.partitions[j].getNextOffset()
@@ -43,6 +68,7 @@ func (c *TopicConsumer) Consume(fromBeginning bool, callback func(m *Message) er
 	for {
 		select {
 		case msg := <-messageCh:
+			c.offsets[msg.partition] = msg.offset + 1
 			err := callback(msg)
 			if err != nil {
 				return err
@@ -50,11 +76,14 @@ func (c *TopicConsumer) Consume(fromBeginning bool, callback func(m *Message) er
 		case err := <-errorCh:
 			return err
 		case <-c.stopCh:
+			c.stoppedCh <- struct{}{}
 			return nil
 		}
 	}
 }
 
-func (c *TopicConsumer) Stop() {
+// send a stop signal and wait for actual stopped signal
+func (c *consumer) stop() {
 	c.stopCh <- struct{}{}
+	<-c.stoppedCh
 }

@@ -2,24 +2,16 @@ package client
 
 import (
 	"godel/internal/protocol"
-	"godel/options"
 )
 
-func (c *Connection) CreateTopics(name string, opts *options.TopicOptions) (*protocol.RespCreateTopics, error) {
+func (c *Connection) ListConsumerGroups(topic string) (*protocol.RespListConsumerGroups, error) {
 	corrID, err := GenerateCorrelationID()
 	if err != nil {
 		return nil, err
 	}
 
-	options.MergeTopicOptions(opts, options.DefaultTopicOptions())
-
-	req := protocol.ReqCreateTopic{
-		Topics: []protocol.ReqCreateTopicTopic{
-			{
-				Name:    name,
-				Configs: *opts,
-			},
-		},
+	req := protocol.ReqListConsumerGroups{
+		Topic: topic,
 	}
 
 	reqBuf, err := req.Serialize()
@@ -28,7 +20,7 @@ func (c *Connection) CreateTopics(name string, opts *options.TopicOptions) (*pro
 	}
 
 	msg := &protocol.BaseRequest{
-		Cmd:           protocol.CmdCreateTopics,
+		Cmd:           protocol.CmdListGroups,
 		ApiVersion:    0,
 		CorrelationID: corrID,
 		Payload:       reqBuf,
@@ -39,13 +31,13 @@ func (c *Connection) CreateTopics(name string, opts *options.TopicOptions) (*pro
 		return nil, err
 	}
 
-	ch := make(chan *protocol.RespCreateTopics, 1)
+	ch := make(chan *protocol.RespListConsumerGroups, 1)
 	err = c.ReadMessage(func(r *protocol.BaseResponse) error {
 		if msg.CorrelationID != r.CorrelationID {
 			return nil
 		}
 
-		resp, err := protocol.DeserializeResponseCreateTopic(r.Payload)
+		resp, err := protocol.DeserializeResponseListConsumerGroups(r.Payload)
 		if err != nil {
 			return err
 		}

@@ -1,4 +1,4 @@
-# Godel
+# Gödel
 
 An attemp to write a ligthweight kafka-like distributed log in golang.
 

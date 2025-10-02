@@ -22,7 +22,7 @@ func (c *Connection) DeleteConsumer(topic, group, id string) (*protocol.RespDele
 	}
 
 	msg := &protocol.BaseRequest{
-		Cmd:           protocol.CmdCreateTopics,
+		Cmd:           protocol.CmdLeaveGroup,
 		ApiVersion:    0,
 		CorrelationID: corrID,
 		Payload:       reqBuf,
@@ -45,7 +45,7 @@ func (c *Connection) DeleteConsumer(topic, group, id string) (*protocol.RespDele
 		}
 
 		ch <- resp
-		return nil
+		return errCloseConnection
 	})
 	if err != nil {
 		return nil, err

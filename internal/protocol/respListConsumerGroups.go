@@ -11,16 +11,16 @@ type RespListConsumerGroups struct {
 }
 
 type ConsumerGroup struct {
-	Name      string     `json:"name"`
-	Consumers []Consumer `json:"consumers"`
+	Name      string                `json:"name"`
+	Consumers []Consumer            `json:"consumers"`
+	Offsets   []ConsumerGroupOffset `json:"offsets"`
 }
 
 type Consumer struct {
-	ID      string           `json:"name"`
-	Offsets []ConsumerOffset `json:"offsets"`
+	ID string `json:"id"`
 }
 
-type ConsumerOffset struct {
+type ConsumerGroupOffset struct {
 	Partition uint32 `json:"partition"`
 	Offset    uint64 `json:"offset"`
 }

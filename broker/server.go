@@ -3,6 +3,7 @@ package broker
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"godel/internal/protocol"
 	"io"
 	"log/slog"
@@ -128,14 +129,35 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 			return nil, errors.New("failed to deserialize request")
 		}
 
-		return b.processConsumeReq(r.CorrelationID, req, responder)
+		resp := b.processConsumeReq(r.CorrelationID, req, responder)
+		if resp == nil {
+			return nil, nil
+		}
+		buf, err := resp.Serialize()
+		if err != nil {
+			return nil, err
+		}
+
+		return buf, nil
 	case protocol.CmdLeaveGroup:
 		req, err := protocol.DeserializeRequestDeleteConsumer(r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
 		}
 
-		return b.processDeleteConsumerReq(req)
+		fmt.Println("fds")
+
+		resp := b.processDeleteConsumerReq(req)
+
+		if resp == nil {
+			return nil, nil
+		}
+		buf, err := resp.Serialize()
+		if err != nil {
+			return nil, err
+		}
+
+		return buf, nil
 	case protocol.CmdListGroups:
 		req, err := protocol.DeserializeReqListConsumerGroups(r.Payload)
 		if err != nil {
@@ -143,6 +165,9 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		}
 
 		resp := b.processListConsumerGroupsReq(req)
+		if resp == nil {
+			return nil, nil
+		}
 		buf, err := resp.Serialize()
 		if err != nil {
 			return nil, err
@@ -215,13 +240,22 @@ func (b *Broker) processProduceReq(req *protocol.ReqProduce) ([]byte, error) {
 	return respBuf, nil
 }
 
-func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responder func(resp *protocol.BaseResponse) error) ([]byte, error) {
+func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responder func(resp *protocol.BaseResponse) error) *protocol.RespConsume {
 	topic, err := b.GetTopic(req.Topic)
 	if err != nil {
-		return nil, err
+		return &protocol.RespConsume{
+			ErrorCode:    1,
+			ErrorMessage: err.Error(),
+		}
 	}
 
-	consumer := topic.createConsumer(req.Group, req.FromBeginning)
+	consumer, err := topic.createConsumer(req.Group, req.ID, req.FromBeginning)
+	if err != nil {
+		return &protocol.RespConsume{
+			ErrorCode:    1,
+			ErrorMessage: err.Error(),
+		}
+	}
 
 	err = consumer.start(func(message *Message) error {
 		r := protocol.RespConsume{
@@ -249,11 +283,18 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 		return responder(&resp)
 	})
 
-	return nil, err
+	if err != nil {
+		return &protocol.RespConsume{
+			ErrorCode:    1,
+			ErrorMessage: err.Error(),
+		}
+	}
+
+	return nil
 }
 
-func (b *Broker) processDeleteConsumerReq(req *protocol.ReqDeleteConsumer) ([]byte, error) {
-	resp := protocol.RespDeleteConsumer{
+func (b *Broker) processDeleteConsumerReq(req *protocol.ReqDeleteConsumer) *protocol.RespDeleteConsumer {
+	resp := &protocol.RespDeleteConsumer{
 		ID:    req.ID,
 		Group: req.Group,
 		Topic: req.Topic,
@@ -261,21 +302,19 @@ func (b *Broker) processDeleteConsumerReq(req *protocol.ReqDeleteConsumer) ([]by
 
 	topic, err := b.GetTopic(req.Topic)
 	if err != nil {
-		return nil, err
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
 	}
 
 	err = topic.removeConsumer(req.Group, req.ID)
 	if err != nil {
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()
+		return resp
 	}
 
-	respBuf, err := resp.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	return respBuf, nil
+	return resp
 }
 
 func (b *Broker) processListConsumerGroupsReq(req *protocol.ReqListConsumerGroups) *protocol.RespListConsumerGroups {
@@ -295,18 +334,17 @@ func (b *Broker) processListConsumerGroupsReq(req *protocol.ReqListConsumerGroup
 	for k := range groups {
 		consumers := []protocol.Consumer{}
 		for i := range groups[k].consumers {
-			offsets := []protocol.ConsumerOffset{}
+			offsets := []protocol.ConsumerGroupOffset{}
 
-			for partition := range groups[k].consumers[i].offsets {
-				offsets = append(offsets, protocol.ConsumerOffset{
+			for partition := range groups[k].offsets {
+				offsets = append(offsets, protocol.ConsumerGroupOffset{
 					Partition: partition,
-					Offset:    groups[k].consumers[i].offsets[partition],
+					Offset:    groups[k].offsets[partition],
 				})
 			}
 
 			consumers = append(consumers, protocol.Consumer{
-				ID:      groups[k].consumers[i].id,
-				Offsets: offsets,
+				ID: groups[k].consumers[i].id,
 			})
 		}
 

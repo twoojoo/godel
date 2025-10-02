@@ -217,11 +217,16 @@ func (t *Topic) produce(message *Message) (uint64, uint32, error) {
 // 	return t.partitions[0].consume(offset, callback)
 // }
 
-func (t *Topic) createConsumer(group string, fromBeginning bool) *consumer {
-	if group == "" { // generate new group when group is not specified
-		group = uuid.NewString()
+func (t *Topic) createConsumer(group, id string, fromBeginning bool) (*consumer, error) {
+	if id == "" { // generate new id when group is not specified
+		id = uuid.NewString()
 	}
 
+	if group == "" {
+		group = id
+	}
+
+	isGroupNew := false
 	if cg, ok := t.consumerGroups[group]; ok {
 		cg.stop()
 	} else {
@@ -232,12 +237,20 @@ func (t *Topic) createConsumer(group string, fromBeginning bool) *consumer {
 		}
 
 		t.consumerGroups[group] = &cg
+		isGroupNew = true
 	}
 
 	t.consumerGroups[group].lock()
 	defer t.consumerGroups[group].unlock()
 
-	consumer := t.consumerGroups[group].apendConsumer(fromBeginning)
+	id = group + "-" + id
+	consumer, err := t.consumerGroups[group].apendConsumer(id, fromBeginning)
+	if err != nil {
+		if len(t.consumerGroups[group].consumers) == 0 && isGroupNew {
+			delete(t.consumerGroups, group)
+		}
+		return nil, err
+	}
 
 	slog.Info("consumer crated, consumer group rebalancing",
 		"group", group,
@@ -248,7 +261,7 @@ func (t *Topic) createConsumer(group string, fromBeginning bool) *consumer {
 	t.consumerGroups[group].rebalance()
 
 	slog.Info("rebalancing done", "group", group)
-	return consumer
+	return consumer, nil
 }
 
 func (t *Topic) removeConsumer(group string, id string) error {
@@ -264,6 +277,11 @@ func (t *Topic) removeConsumer(group string, id string) error {
 	err := t.consumerGroups[group].removeConsumer(id)
 	if err != nil {
 		return err
+	}
+
+	if len(t.consumerGroups[group].consumers) == 0 {
+		slog.Warn("consumer group has zero consumers", "group", group)
+		return nil
 	}
 
 	slog.Info("consumer removed, consumer group rebalancing",

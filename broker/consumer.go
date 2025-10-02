@@ -2,8 +2,6 @@ package broker
 
 import (
 	"sync"
-
-	"github.com/google/uuid"
 )
 
 // Any modification to the consumer object must
@@ -12,8 +10,8 @@ import (
 type consumer struct {
 	id            string
 	partitions    []*Partition
-	offsets       map[uint32]uint64
 	fromBeginning bool
+	started       bool
 
 	stoppedCh chan struct{}
 	stopCh    chan struct{}
@@ -21,11 +19,13 @@ type consumer struct {
 	mu sync.Mutex
 }
 
-func newConsumer(partitions []*Partition, fromBeginning bool) *consumer {
+func newConsumer(id string, partitions []*Partition, fromBeginning bool) *consumer {
 	return &consumer{
-		id:            uuid.NewString(),
+		id:            id,
 		partitions:    partitions,
 		fromBeginning: fromBeginning,
+		stopCh:        make(chan struct{}),
+		stoppedCh:     make(chan struct{}),
 	}
 }
 
@@ -39,8 +39,12 @@ func (c *consumer) unlock() {
 
 func (c *consumer) start(callback func(m *Message) error) error {
 	c.mu.Lock()
+	defer func() {
+		c.started = false
+	}()
 	defer c.mu.Unlock()
 
+	c.started = true
 	messageCh := make(chan *Message)
 	errorCh := make(chan error)
 
@@ -68,7 +72,6 @@ func (c *consumer) start(callback func(m *Message) error) error {
 	for {
 		select {
 		case msg := <-messageCh:
-			c.offsets[msg.partition] = msg.offset + 1
 			err := callback(msg)
 			if err != nil {
 				return err
@@ -84,6 +87,10 @@ func (c *consumer) start(callback func(m *Message) error) error {
 
 // send a stop signal and wait for actual stopped signal
 func (c *consumer) stop() {
+	if !c.started {
+		return
+	}
+
 	c.stopCh <- struct{}{}
 	<-c.stoppedCh
 }

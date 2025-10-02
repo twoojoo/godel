@@ -5,6 +5,7 @@ import (
 )
 
 type ReqConsume struct {
+	ID            string `json:"id"`
 	Topic         string `json:"topic"`
 	Group         string `json:"group"`
 	FromBeginning bool   `json:"fromBeginning"`

@@ -6,12 +6,16 @@ import (
 	"sync"
 )
 
+const errConsumerIdAlreadyExists = "consumer.id.already.exists"
+
 type consumerGroup struct {
 	name      string
 	topic     *Topic
 	consumers []*consumer
 
-	mu sync.Mutex `json:"mu" bson:"mu"`
+	offsets map[uint32]uint64
+
+	mu sync.Mutex
 }
 
 func (c *consumerGroup) lock() {
@@ -63,10 +67,16 @@ func (c *consumerGroup) rebalance() {
 }
 
 // MUST lock the consumer group before appending consumer!
-func (c *consumerGroup) apendConsumer(fromBeginning bool) *consumer {
-	consumer := newConsumer([]*Partition{}, fromBeginning)
+func (c *consumerGroup) apendConsumer(id string, fromBeginning bool) (*consumer, error) {
+	for i := range c.consumers {
+		if c.consumers[i].id == id {
+			return nil, errors.New(errConsumerIdAlreadyExists)
+		}
+	}
+
+	consumer := newConsumer(id, []*Partition{}, fromBeginning)
 	c.consumers = append(c.consumers, consumer)
-	return consumer
+	return consumer, nil
 }
 
 // MUST lock the consumer group before appending consumer!
@@ -89,6 +99,6 @@ func (c *consumerGroup) removeConsumer(id string) error {
 	c.consumers[i].lock()
 	defer c.consumers[i].unlock()
 
-	c.consumers = slices.Delete(c.consumers, i, i)
+	c.consumers = slices.Delete(c.consumers, i, i+1)
 	return nil
 }

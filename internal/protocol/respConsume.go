@@ -5,7 +5,9 @@ import (
 )
 
 type RespConsume struct {
-	Messages []RespConsumeMessage `json:"messages"`
+	Messages     []RespConsumeMessage `json:"messages"`
+	ErrorCode    int                  `json:"errorCode"`
+	ErrorMessage string               `json:"errorMessage,omitempty"`
 }
 
 type RespConsumeMessage struct {

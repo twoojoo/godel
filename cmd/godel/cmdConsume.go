@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"godel/internal/client"
 	"godel/internal/protocol"
+	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/google/uuid"
 	"github.com/urfave/cli/v3"
 )
 
@@ -46,9 +50,6 @@ var commandConsume = &cli.Command{
 		}
 
 		group := cmd.String("group")
-		if topic == "" {
-			return errors.New("topic must be provided")
-		}
 
 		corrID, err := client.GenerateCorrelationID()
 		if err != nil {
@@ -104,7 +105,10 @@ var commandConsume = &cli.Command{
 			})
 		}()
 
+		consumerID := uuid.NewString()
+
 		req := protocol.ReqConsume{
+			ID:            consumerID,
 			Topic:         topic,
 			Group:         group,
 			FromBeginning: cmd.Bool("fromBeginning"),
@@ -122,6 +126,28 @@ var commandConsume = &cli.Command{
 			Payload:       reqBuf,
 		}
 
+		if group == "" {
+			consumerID = consumerID + "-" + consumerID
+		} else {
+			consumerID = group + "-" + consumerID
+		}
+
+		onShutdown(func() {
+			conn, err := client.ConnectToBroker(getAddr(cmd))
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			fmt.Println("disconnecting consumer...")
+			resp, err := conn.DeleteConsumer(topic, group, consumerID)
+			if err != nil {
+				fmt.Println(err)
+			}
+			if resp.ErrorCode != 0 {
+				fmt.Println("Unxexpected Error:", resp.ErrorMessage)
+			}
+		})
+
 		err = conn.SendMessage(msg)
 		if err != nil {
 			fmt.Println(err)
@@ -129,4 +155,22 @@ var commandConsume = &cli.Command{
 
 		select {}
 	},
+}
+
+func onShutdown(callback func()) {
+	sigs := make(chan os.Signal, 1)
+
+	// Catch common termination signals
+	signal.Notify(sigs,
+		syscall.SIGINT,  // Ctrl+C
+		syscall.SIGTERM, // kill <pid>
+		syscall.SIGHUP,  // terminal closed
+		syscall.SIGQUIT, // Ctrl+\
+	)
+
+	go func() {
+		<-sigs
+		callback()
+		os.Exit(0)
+	}()
 }

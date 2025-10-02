@@ -14,7 +14,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [x] Rentention Logic
     - [x] time (retention.ms)
     - [x] size (retention.bytes)
-    - cleanup policies
+    - [ ] cleanup policies
         - [x] delete
         - [ ] compact (latest message per key)
 - [x] Topics

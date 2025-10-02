@@ -11,7 +11,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [x] Message serialization and storage
 - [x] Log Segments
 - [x] Partitions
-- [x] Rentention Logic
+- [x] Rentention Logic (time and size)
 - [x] Topics
 - [x] CLI
     - [x] Run server

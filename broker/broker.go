@@ -93,6 +93,16 @@ func (b *Broker) CreateTopic(name string, opts ...*options.TopicOptions) (*Topic
 	return topic, nil
 }
 
+func (b *Broker) GetTopic(name string) (*Topic, error) {
+	for i := range b.topics {
+		if b.topics[i].name == name {
+			return b.topics[i], nil
+		}
+	}
+
+	return nil, errors.New(errTopicNotFound)
+}
+
 func (b *Broker) GetOrCreateTopic(name string, opts ...*options.TopicOptions) (*Topic, error) {
 	if len(opts) == 0 {
 		opts = append(opts, options.DefaultTopicOptions())
@@ -117,14 +127,14 @@ func (b *Broker) GetOrCreateTopic(name string, opts ...*options.TopicOptions) (*
 	return topic, nil
 }
 
-func (b *Broker) Produce(topic string, message *Message) (uint64, error) {
+func (b *Broker) Produce(topic string, message *Message) (uint64, uint32, error) {
 	for i := range b.topics {
 		if b.topics[i].name == topic {
 			return b.topics[i].produce(message)
 		}
 	}
 
-	return 0, errors.New(errTopicNotFound)
+	return 0, 0, errors.New(errTopicNotFound)
 }
 
 func (b *Broker) Run(port int) error {

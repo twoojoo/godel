@@ -2,8 +2,8 @@ package protocol
 
 const (
 	CmdProduce int16 = 0
-	CmdFetch   int16 = 1
+	CmdConsume int16 = 1
 
-	OffsetCommit int16 = 8
-	CreateTopics int16 = 19
+	OffsetCommit    int16 = 8
+	CmdCreateTopics int16 = 19
 )

@@ -189,7 +189,7 @@ func (t *Topic) Options() *options.TopicOptions {
 	return t.options
 }
 
-func (t *Topic) produce(message *Message) (uint64, error) {
+func (t *Topic) produce(message *Message) (uint64, uint32, error) {
 	partitionNumber := DefaultPartitioner([]byte(message.key), t.options.NumPartitions)
 
 	var partition *Partition
@@ -199,7 +199,12 @@ func (t *Topic) produce(message *Message) (uint64, error) {
 		}
 	}
 
-	return partition.push(message)
+	offset, err := partition.push(message)
+	if err != nil {
+		return 0, 0, nil
+	}
+
+	return offset, partitionNumber, nil
 }
 
 func (t *Topic) Consume(offset uint64, callback func(message *Message) error) error {

@@ -62,7 +62,7 @@ var CommandCreateTopic = &cli.Command{
 		}
 
 		msg := &protocol.BaseRequest{
-			Cmd:           protocol.CreateTopics,
+			Cmd:           protocol.CmdCreateTopics,
 			ApiVersion:    0,
 			CorrelationID: corrID,
 			Payload:       reqBuf,

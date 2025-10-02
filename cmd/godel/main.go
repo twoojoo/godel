@@ -14,6 +14,8 @@ func main() {
 		Name: "godel",
 		Commands: []*cli.Command{
 			client.CommandRunServer,
+			client.CommandProduce,
+			client.CommandConsume,
 			{
 				Name: "topic",
 				Commands: []*cli.Command{

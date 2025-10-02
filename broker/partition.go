@@ -196,6 +196,7 @@ func (p *Partition) consume(offset uint64, callback func(message *Message) error
 			}
 
 			// execute calback on message
+			message.partition = p.num
 			err = callback(message)
 			if err != nil {
 				return err

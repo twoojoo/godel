@@ -13,13 +13,14 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [x] Partitions
 - [x] Rentention Logic (time and size)
 - [x] Topics
-- [x] CLI
+- [x] CLI 
     - [x] Run server
     - [x] Create topics
     - [ ] Delete topics
     - [ ] Edit topics
     - [x] Produce
     - [ ] Consume
+    - [ ] Commit
 - [x] Dockerfile (basic)
 - [ ] Full concurrency support (mutexes)
 - [ ] Empty key partition rotation (round robin)

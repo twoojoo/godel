@@ -21,12 +21,16 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [x] TCP protocol
 - [ ] CLI 
     - [x] Run server
+    - [ ] Edit server
     - [x] Create topics
     - [ ] Delete topics
     - [ ] Edit topics
     - [x] Produce
     - [ ] Consume
     - [ ] Commit
+    - [ ] Create consumer group
+    - [ ] Delete consumer group
+- [ ] Consumer groups
 - [ ] Consumer heartbeats
 - [ ] Full concurrency support (mutexes)
 - [ ] Empty key partition rotation (round robin)
@@ -37,9 +41,9 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [ ] Fully Distributed
     - [ ] Raft consensus
     - [ ] Partitions distribution
+    - [ ] Consumer groups distribution
     - [ ] Replication
     - [ ] Disaster recovery
-    - [ ] Consumer groups
     - [ ] Consumer rebalancing
 - [ ] Golang client library
 - [ ] Fully functional CLI

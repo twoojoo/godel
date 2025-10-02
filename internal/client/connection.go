@@ -4,45 +4,28 @@ import (
 	"bufio"
 	"godel/internal/protocol"
 	"net"
-
-	"github.com/urfave/cli/v3"
 )
 
-type connection struct {
+type Connection struct {
 	reader *bufio.Reader
 	writer *bufio.Writer
 	conn   net.Conn
 }
 
-func getAddr(cmd *cli.Command) string {
-	host := "localhost"
-	port := "9090"
-
-	if hostOpt := cmd.String("host"); hostOpt != "" {
-		host = hostOpt
-	}
-
-	if portOpt := cmd.String("port"); portOpt != "" {
-		port = portOpt
-	}
-
-	return host + ":" + port
-}
-
-func connectToBroker(cmd *cli.Command) (*connection, error) {
-	conn, err := net.Dial("tcp", getAddr(cmd))
+func ConnectToBroker(addr string) (*Connection, error) {
+	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
 
-	return &connection{
+	return &Connection{
 		reader: bufio.NewReader(conn),
 		writer: bufio.NewWriter(conn),
 		conn:   conn,
 	}, nil
 }
 
-func (c *connection) sendMessage(m *protocol.BaseRequest) error {
+func (c *Connection) SendMessage(m *protocol.BaseRequest) error {
 	ser := m.Serialize()
 
 	_, err := c.writer.Write(ser)
@@ -53,7 +36,7 @@ func (c *connection) sendMessage(m *protocol.BaseRequest) error {
 	return c.writer.Flush()
 }
 
-func (c *connection) readMessage(cb func(r *protocol.BaseResponse) error) error {
+func (c *Connection) ReadMessage(cb func(r *protocol.BaseResponse) error) error {
 	for {
 		msg, err := protocol.DeserializeResponse(c.reader)
 		if err != nil {

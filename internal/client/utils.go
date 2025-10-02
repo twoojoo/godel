@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 )
 
-func generateCorrelationID() (int32, error) {
+func GenerateCorrelationID() (int32, error) {
 	var b [84]byte
 	_, err := rand.Read(b[:])
 	if err != nil {

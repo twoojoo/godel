@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"godel/internal/client"
 	"log"
 	"os"
 
@@ -13,13 +12,13 @@ func main() {
 	app := &cli.Command{
 		Name: "godel",
 		Commands: []*cli.Command{
-			client.CommandRunServer,
-			client.CommandProduce,
-			client.CommandConsume,
+			commandRunServer,
+			commandConsume,
+			commandProduce,
 			{
 				Name: "topic",
 				Commands: []*cli.Command{
-					client.CommandCreateTopic,
+					commandCreateTopic,
 				},
 			},
 		},

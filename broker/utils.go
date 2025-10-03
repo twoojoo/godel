@@ -39,3 +39,32 @@ func shuffleSlice[T any](slice []T) {
 		slice[i], slice[j] = slice[j], slice[i]
 	}
 }
+
+func slicesEqualUnordered[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	count := make(map[T]int)
+
+	for _, v := range a {
+		count[v]++
+	}
+
+	for _, v := range b {
+		count[v]--
+		if count[v] < 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+func getMapKeys[K comparable, V any](m map[K]V) []K {
+	keys := make([]K, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}

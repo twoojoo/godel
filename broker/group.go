@@ -99,7 +99,6 @@ func (c *consumerGroup) removeConsumer(id string) error {
 	defer c.consumers[i].unlock()
 
 	c.consumers[i].close()
-	println("after close")
 	c.consumers = slices.Delete(c.consumers, i, i+1)
 	return nil
 }

@@ -138,14 +138,18 @@ func MergeBrokerOptions(o1, o2 *BrokerOptions) {
 }
 
 type ConsumerOptions struct {
-	SessionTimeoutMilli    int64 `json:"session.timeout.ms"`
-	HeartbeatIntervalMilli int64 `json:"heartbeat.interval.milli"`
+	SessionTimeoutMilli     int64 `json:"session.timeout.ms"`
+	HeartbeatIntervalMilli  int64 `json:"heartbeat.interval.ms"`
+	EnableAutoCommit        bool  `json:"enable.auto.commit"`
+	AutoCommitIntervalMilli int64 `json:"auto.commit.interval.ms"`
 }
 
 func DefaulcConsumerOption() *ConsumerOptions {
 	return &ConsumerOptions{
-		SessionTimeoutMilli:    10000, // 10 secs
-		HeartbeatIntervalMilli: 3000,  // 3 secs
+		SessionTimeoutMilli:     10000, // 10 secs
+		HeartbeatIntervalMilli:  3000,  // 3 secs
+		AutoCommitIntervalMilli: 5000,
+		EnableAutoCommit:        true,
 	}
 }
 
@@ -159,6 +163,16 @@ func (o *ConsumerOptions) WithHeartbeatInterval(d time.Duration) *ConsumerOption
 	return o
 }
 
+func (o *ConsumerOptions) WithAutoCommitInterval(d time.Duration) *ConsumerOptions {
+	o.AutoCommitIntervalMilli = d.Milliseconds()
+	return o
+}
+
+func (o *ConsumerOptions) DisableAutoCommit() *ConsumerOptions {
+	o.EnableAutoCommit = false
+	return o
+}
+
 func MergeConsumerOptions(o1, o2 *ConsumerOptions) {
 	if o1.HeartbeatIntervalMilli == 0 {
 		o1.HeartbeatIntervalMilli = o2.HeartbeatIntervalMilli
@@ -166,5 +180,9 @@ func MergeConsumerOptions(o1, o2 *ConsumerOptions) {
 
 	if o1.SessionTimeoutMilli == 0 {
 		o1.SessionTimeoutMilli = o2.SessionTimeoutMilli
+	}
+
+	if o1.AutoCommitIntervalMilli == 0 {
+		o1.AutoCommitIntervalMilli = o2.AutoCommitIntervalMilli
 	}
 }

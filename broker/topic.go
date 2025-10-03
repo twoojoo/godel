@@ -7,6 +7,7 @@ import (
 	"godel/options"
 	"log/slog"
 	"os"
+	"sync"
 
 	"github.com/google/uuid"
 )
@@ -15,6 +16,8 @@ const errTopicAlreadyExists = "topic.already.exists"
 const errPartitionsNumMismatch = "num.partition.mismatch"
 const errConsumerGroupNotFound = "consumer.group.not.found"
 const errConsumerNotFound = "consumer.not.found"
+const errConsumerGroupsOffsetsMismatch = "cosumer.groups.offsets.mismatch"
+const errConsumerGroupsPartitionsMismatch = "consumer.groups.partitions.mismatch"
 
 type Topic struct {
 	name           string
@@ -22,6 +25,8 @@ type Topic struct {
 	options        *options.TopicOptions
 	brokerOptions  *options.BrokerOptions
 	consumerGroups map[string]*consumerGroup
+
+	mu sync.Mutex
 	// consumers     []*TopicConsumer
 }
 
@@ -81,9 +86,10 @@ func newTopic(name string, topicOptions *options.TopicOptions, brokerOptions *op
 	slog.Info("initializing topic", "topic", name)
 
 	topic := &Topic{
-		name:          name,
-		options:       topicOptions,
-		brokerOptions: brokerOptions,
+		name:           name,
+		options:        topicOptions,
+		brokerOptions:  brokerOptions,
+		consumerGroups: map[string]*consumerGroup{},
 	}
 
 	err := topic.persistOptions()
@@ -133,6 +139,9 @@ func loadTopic(name string, brokerOptions *options.BrokerOptions, newTopicOption
 		options:        newTopicOptions,
 		consumerGroups: map[string]*consumerGroup{},
 	}
+
+	topic.mu.Lock()
+	defer topic.mu.Unlock()
 
 	if newTopicOptions != nil {
 		err := topic.persistOptions()
@@ -187,6 +196,33 @@ func loadTopic(name string, brokerOptions *options.BrokerOptions, newTopicOption
 
 	topic.partitions = partitions
 
+	topicState, err := topic.loadState()
+	if err != nil {
+		return nil, err
+	}
+
+	// load existing consumer groups with their offsets
+	if len(topicState.ConsumerGroups) > 0 {
+		groupNames := make([]string, len(topicState.ConsumerGroups))
+		groupOffsets := make([]map[uint32]uint64, len(topicState.ConsumerGroups))
+
+		for i := range topicState.ConsumerGroups {
+			stateGroupPartitions := getMapKeys(topicState.ConsumerGroups[i].Offsets)
+			consistentGroup := slicesEqualUnordered(partitionNums, stateGroupPartitions)
+			if !consistentGroup && len(topicState.ConsumerGroups[i].Offsets) != 0 {
+				return nil, errors.New(errConsumerGroupsPartitionsMismatch)
+			}
+
+			groupNames = append(groupNames, topicState.ConsumerGroups[i].Name)
+			groupOffsets = append(groupOffsets, topicState.ConsumerGroups[i].Offsets)
+		}
+
+		_, err = topic.createConsumerGroups(groupNames, groupOffsets)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return topic, nil
 }
 
@@ -212,10 +248,41 @@ func (t *Topic) produce(message *Message) (uint64, uint32, error) {
 	return offset, partitionNumber, nil
 }
 
-// func (t *Topic) Consume(offset uint64) error {
-// 	// temp consume from first partition only
-// 	return t.partitions[0].consume(offset, callback)
-// }
+func (t *Topic) createConsumerGroups(names []string, offsets []map[uint32]uint64) ([]*consumerGroup, error) {
+	if t.mu.TryLock() {
+		defer t.mu.Unlock()
+	}
+
+	cgs := make([]*consumerGroup, len(names))
+
+	if offsets != nil && len(offsets) != len(names) {
+		return nil, errors.New(errConsumerGroupsOffsetsMismatch)
+	}
+
+	for i := range names {
+		cg := consumerGroup{
+			name:      names[i],
+			topic:     t,
+			consumers: []*consumer{},
+			offsets:   map[uint32]uint64{},
+		}
+
+		if len(offsets) != 0 {
+			cg.offsets = offsets[i]
+		}
+
+		t.consumerGroups[names[i]] = &cg
+
+		err := t.persistState()
+		if err != nil {
+			return nil, err
+		}
+
+		cgs[i] = &cg
+	}
+
+	return cgs, nil
+}
 
 func (t *Topic) createConsumer(group, id string, fromBeginning bool, opts *options.ConsumerOptions) (*consumer, error) {
 	if id == "" { // generate new id when group is not specified
@@ -226,15 +293,11 @@ func (t *Topic) createConsumer(group, id string, fromBeginning bool, opts *optio
 	if cg, ok := t.consumerGroups[group]; ok {
 		cg.stop()
 	} else {
-		cg := consumerGroup{
-			name:      group,
-			topic:     t,
-			consumers: []*consumer{},
-			offsets:   map[uint32]uint64{},
-		}
-
-		t.consumerGroups[group] = &cg
 		isGroupNew = true
+		_, err := t.createConsumerGroups([]string{group}, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	t.consumerGroups[group].lock()
@@ -301,6 +364,9 @@ func (t *Topic) removeConsumer(group string, id string) error {
 }
 
 func (t *Topic) listConsumerGroups() map[string]*consumerGroup {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	return t.consumerGroups
 }
 
@@ -312,7 +378,15 @@ func (t *Topic) commitOffset(group string, partition uint32, offset uint64) erro
 	t.consumerGroups[group].lock()
 	defer t.consumerGroups[group].unlock()
 
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	err := t.consumerGroups[group].commitOffset(partition, offset)
+	if err != nil {
+		return err
+	}
+
+	err = t.persistState()
 	if err != nil {
 		return err
 	}
@@ -326,6 +400,49 @@ func (t *Topic) heartbeat(group, consumerID string) error {
 	}
 
 	err := t.consumerGroups[group].heartbeat(consumerID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *Topic) loadState() (*topicState, error) {
+	topicStatePath := fmt.Sprintf("%s/%s/state.json", t.brokerOptions.BasePath, t.name)
+	stateBytes, err := os.ReadFile(topicStatePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var topicState topicState
+	err = json.Unmarshal(stateBytes, &topicState)
+	if err != nil {
+		return nil, err
+	}
+
+	return &topicState, nil
+}
+
+func (t *Topic) persistState() error {
+	statePath := fmt.Sprintf("%s/%s/state.json", t.brokerOptions.BasePath, t.name)
+
+	state := topicState{
+		ConsumerGroups: []topicStateGroup{},
+	}
+
+	for i := range t.consumerGroups {
+		state.ConsumerGroups = append(state.ConsumerGroups, topicStateGroup{
+			Name:    t.consumerGroups[i].name,
+			Offsets: t.consumerGroups[i].offsets,
+		})
+	}
+
+	stateBytes, err := json.Marshal(&state)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(statePath, stateBytes, 0644)
 	if err != nil {
 		return err
 	}

@@ -53,6 +53,12 @@ var cmdConsume = &cli.Command{
 		&cli.Int64Flag{
 			Name: "session.timeout.ms",
 		},
+		&cli.BoolFlag{
+			Name: "enable.auto.commit",
+		},
+		&cli.Int64Flag{
+			Name: "auto.commit.interval.ms",
+		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) (err error) {
 		topic := cmd.StringArg("topic")
@@ -75,8 +81,10 @@ var cmdConsume = &cli.Command{
 		}
 
 		opts := options.ConsumerOptions{
-			SessionTimeoutMilli:    cmd.Int64("session.timeout.ms"),
-			HeartbeatIntervalMilli: cmd.Int64("heartbeat.interval.ms"),
+			SessionTimeoutMilli:     cmd.Int64("session.timeout.ms"),
+			HeartbeatIntervalMilli:  cmd.Int64("heartbeat.interval.ms"),
+			AutoCommitIntervalMilli: cmd.Int64("auto.commit.interval.ms"),
+			EnableAutoCommit:        cmd.Bool("enable.auto.commit"),
 		}
 
 		options.MergeConsumerOptions(&opts, options.DefaulcConsumerOption())
@@ -108,11 +116,11 @@ var cmdConsume = &cli.Command{
 		}
 
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
-			if err == client.ErrCloseConnection {
+			if err != client.ErrCloseConnection {
+				println("error", err)
 				close(c)
 				return
 			}
-			fmt.Println("error", err)
 		})
 		if err != nil {
 			return err
@@ -127,6 +135,23 @@ var cmdConsume = &cli.Command{
 				}
 			}
 		}()
+
+		var latestOffsets = map[uint32]uint64{}
+
+		if opts.EnableAutoCommit {
+			go func() {
+				for {
+					time.Sleep(time.Duration(opts.AutoCommitIntervalMilli) * time.Millisecond)
+
+					for partition, offset := range latestOffsets {
+						_, err := conn.CommitOffset(topic, group, partition, offset)
+						if err != nil {
+							println("heartbeat error", err)
+						}
+					}
+				}
+			}()
+		}
 
 		go func() {
 			count := 0
@@ -145,6 +170,8 @@ var cmdConsume = &cli.Command{
 						close(conn)
 						os.Exit(0)
 					}
+
+					latestOffsets[*resp.Messages[i].Partition] = *resp.Messages[i].Offset
 
 					count++
 

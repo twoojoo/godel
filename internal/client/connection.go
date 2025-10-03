@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-var errCloseConnection = errors.New("close.connection")
+var ErrCloseConnection = errors.New("close.connection")
 
 type listener struct {
 	correlationID int32
@@ -45,6 +45,7 @@ func ConnectToBroker(addr string, onError func(*Connection, error)) (*Connection
 		requests:  requests,
 		listeners: []listener{},
 		conn:      conn,
+		onError:   onError,
 	}
 
 	c.startListening()
@@ -70,12 +71,12 @@ func (c *Connection) startListening() {
 			for i := range c.listeners {
 				if c.listeners[i].correlationID == msg.CorrelationID {
 					err = c.listeners[i].callback(msg)
-					if err != nil {
+					if err != nil && c != nil {
 						c.onError(c, err)
 						continue
 					}
 
-					if err == errCloseConnection {
+					if err == ErrCloseConnection {
 						c.Close()
 						return
 					}

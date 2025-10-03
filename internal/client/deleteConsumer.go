@@ -42,7 +42,7 @@ func (c *Connection) DeleteConsumer(topic, group, id string) (*protocol.RespDele
 		}
 
 		ch <- resp
-		return errCloseConnection
+		return ErrCloseConnection
 	})
 	if err != nil {
 		return nil, err

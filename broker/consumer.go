@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"fmt"
 	"godel/options"
 	"sync"
 	"time"
@@ -20,6 +21,7 @@ type consumer struct {
 
 	stoppedCh chan struct{}
 	stopCh    chan struct{}
+	deleteCh  chan struct{}
 
 	mu         sync.Mutex
 	hearbeatMu sync.Mutex
@@ -33,7 +35,9 @@ func (c *consumerGroup) newConsumer(id string, partitions []*Partition, fromBegi
 		fromBeginning: fromBeginning,
 		stopCh:        make(chan struct{}),
 		stoppedCh:     make(chan struct{}),
+		deleteCh:      make(chan struct{}, 1),
 		options:       opts,
+		lastHeartbeat: time.Now(),
 	}
 
 	c.consumers = append(c.consumers, consumer)
@@ -105,6 +109,10 @@ func (c *consumer) stop() {
 	<-c.stoppedCh
 }
 
+func (c *consumer) close() {
+	c.deleteCh <- struct{}{}
+}
+
 func (c *consumer) heartbeat() {
 	c.hearbeatMu.Lock()
 	defer c.hearbeatMu.Unlock()
@@ -116,6 +124,26 @@ func (c *consumer) heartbeatCheck() bool {
 	c.hearbeatMu.Lock()
 	defer c.hearbeatMu.Unlock()
 
-	// should check for expiration
-	return time.Now().Sub(c.lastHeartbeat) > time.Duration(c.options.SessionTimeoutMilli)
+	age := time.Since(c.lastHeartbeat)
+	maxAge := time.Duration(c.options.SessionTimeoutMilli) * time.Millisecond
+	fmt.Println(age, maxAge)
+	return age > maxAge
+}
+
+func (c *consumer) startHearbeatChecks(onExpiration func(id string)) {
+	go func() {
+		for {
+			time.Sleep(time.Duration(c.options.SessionTimeoutMilli) * time.Millisecond)
+
+			select {
+			case <-c.deleteCh:
+				return
+			default:
+				expired := c.heartbeatCheck()
+				if expired {
+					onExpiration(c.id)
+				}
+			}
+		}
+	}()
 }

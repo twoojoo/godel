@@ -50,7 +50,7 @@ func (c *Connection) Produce(topic string, key, payload []byte) (*protocol.RespC
 		}
 
 		ch <- resp
-		return errCloseConnection
+		return ErrCloseConnection
 	})
 	if err != nil {
 		return nil, err

@@ -91,7 +91,6 @@ func (c *consumerGroup) removeConsumer(id string) error {
 	if i == -1 {
 		return errors.New(errConsumerNotFound)
 	}
-
 	c.consumers[i].stop()
 
 	// make sure its not started again,
@@ -99,6 +98,8 @@ func (c *consumerGroup) removeConsumer(id string) error {
 	c.consumers[i].lock()
 	defer c.consumers[i].unlock()
 
+	c.consumers[i].close()
+	println("after close")
 	c.consumers = slices.Delete(c.consumers, i, i+1)
 	return nil
 }
@@ -113,6 +114,7 @@ func (g *consumerGroup) heartbeat(consumerID string) error {
 	for i := range g.consumers {
 		if g.consumers[i].id == consumerID {
 			g.consumers[i].heartbeat()
+			return nil
 		}
 	}
 

@@ -46,7 +46,7 @@ func (c *Connection) Heartbeat(topic, group string, consumerID string) (*protoco
 		}
 
 		ch <- resp
-		return errCloseConnection
+		return ErrCloseConnection
 	})
 	if err != nil {
 		return nil, err

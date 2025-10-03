@@ -43,7 +43,7 @@ func (c *Connection) ListConsumerGroups(topic string) (*protocol.RespListConsume
 		}
 
 		ch <- resp
-		return errCloseConnection
+		return ErrCloseConnection
 	})
 	if err != nil {
 		return nil, err

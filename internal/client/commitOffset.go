@@ -47,7 +47,7 @@ func (c *Connection) CommitOffset(topic, group string, partition uint32, offset 
 		}
 
 		ch <- resp
-		return errCloseConnection
+		return ErrCloseConnection
 	})
 	if err != nil {
 		return nil, err

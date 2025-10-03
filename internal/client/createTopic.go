@@ -51,7 +51,7 @@ func (c *Connection) CreateTopics(name string, opts *options.TopicOptions) (*pro
 		}
 
 		ch <- resp
-		return errCloseConnection
+		return ErrCloseConnection
 	})
 	if err != nil {
 		return nil, err

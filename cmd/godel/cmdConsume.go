@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/urfave/cli/v3"
@@ -31,12 +32,11 @@ var cmdConsume = &cli.Command{
 		&cli.StringArg{
 			Name: "topic",
 		},
+		&cli.StringArg{
+			Name: "group",
+		},
 	},
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    "group",
-			Aliases: []string{"g"},
-		},
 		&cli.BoolFlag{
 			Name: "fromBeginning",
 		},
@@ -47,6 +47,12 @@ var cmdConsume = &cli.Command{
 			Name:    "number",
 			Aliases: []string{"n"},
 		},
+		&cli.Int64Flag{
+			Name: "heartbeat.interval.ms",
+		},
+		&cli.Int64Flag{
+			Name: "session.timeout.ms",
+		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) (err error) {
 		topic := cmd.StringArg("topic")
@@ -54,11 +60,14 @@ var cmdConsume = &cli.Command{
 			return errors.New("topic must be provided")
 		}
 
-		group := cmd.String("group")
+		group := cmd.StringArg("group")
+		if group == "" {
+			return errors.New("group must be provided")
+		}
 
 		maxMessages := cmd.Int32("number")
 
-		consumerID := uuid.NewString()
+		consumerID := group + uuid.NewString()
 
 		corrID, err := client.GenerateCorrelationID()
 		if err != nil {
@@ -72,37 +81,52 @@ var cmdConsume = &cli.Command{
 
 		options.MergeConsumerOptions(&opts, options.DefaulcConsumerOption())
 
-		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
-			fmt.Println("error", err)
-		})
-		if err != nil {
-			return err
-		}
-
 		var alreadyClosed bool
-
-		close := func() {
+		close := func(conn *client.Connection) {
 			if alreadyClosed {
+				os.Exit(0)
 				return
 			}
 
-			if group == "" {
-				consumerID = consumerID + "-" + consumerID
-			} else {
-				consumerID = group + "-" + consumerID
-			}
+			// close anyway
+			go func() {
+				time.Sleep(500 * time.Millisecond)
+				os.Exit(0)
+			}()
 
 			fmt.Println("disconnecting consumer...")
 			resp, err := conn.DeleteConsumer(topic, group, consumerID)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("error deleting consumer", err)
 			}
 			if resp.ErrorCode != 0 {
 				fmt.Println("Unxexpected Error:", resp.ErrorMessage)
 			}
 
 			alreadyClosed = true
+			os.Exit(0)
 		}
+
+		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
+			if err == client.ErrCloseConnection {
+				close(c)
+				return
+			}
+			fmt.Println("error", err)
+		})
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			for {
+				time.Sleep(time.Duration(opts.HeartbeatIntervalMilli) * time.Millisecond)
+				_, err := conn.Heartbeat(topic, group, consumerID)
+				if err != nil {
+					println("heartbeat error", err)
+				}
+			}
+		}()
 
 		go func() {
 			count := 0
@@ -118,7 +142,7 @@ var cmdConsume = &cli.Command{
 
 				for i := range resp.Messages {
 					if count >= int(maxMessages) && maxMessages != 0 {
-						close()
+						close(conn)
 						os.Exit(0)
 					}
 
@@ -176,7 +200,9 @@ var cmdConsume = &cli.Command{
 			Payload:       reqBuf,
 		}
 
-		onShutdown(close)
+		onShutdown(func() {
+			close(conn)
+		})
 
 		err = conn.SendMessage(msg)
 		if err != nil {

@@ -3,7 +3,6 @@ package broker
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"godel/internal/protocol"
 	"io"
 	"log/slog"
@@ -150,8 +149,6 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 			return nil, errors.New("failed to deserialize request")
 		}
 
-		fmt.Println("fds")
-
 		resp := b.processDeleteConsumerReq(req)
 
 		if resp == nil {
@@ -286,7 +283,7 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 		}
 	}
 
-	consumer, err := topic.createConsumer(req.Group, req.ID, req.FromBeginning, req.ConsumeOptions)
+	consumer, err := topic.createConsumer(req.Group, req.ID, req.FromBeginning, &req.ConsumerOptions)
 	if err != nil {
 		return &protocol.RespConsume{
 			ErrorCode:    1,

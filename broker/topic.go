@@ -219,11 +219,7 @@ func (t *Topic) produce(message *Message) (uint64, uint32, error) {
 
 func (t *Topic) createConsumer(group, id string, fromBeginning bool, opts *options.ConsumerOptions) (*consumer, error) {
 	if id == "" { // generate new id when group is not specified
-		id = uuid.NewString()
-	}
-
-	if group == "" {
-		group = id
+		id = group + uuid.NewString()
 	}
 
 	isGroupNew := false
@@ -244,7 +240,6 @@ func (t *Topic) createConsumer(group, id string, fromBeginning bool, opts *optio
 	t.consumerGroups[group].lock()
 	defer t.consumerGroups[group].unlock()
 
-	id = group + "-" + id
 	consumer, err := t.consumerGroups[group].apendConsumer(id, fromBeginning, opts)
 	if err != nil {
 		if len(t.consumerGroups[group].consumers) == 0 && isGroupNew {
@@ -252,6 +247,14 @@ func (t *Topic) createConsumer(group, id string, fromBeginning bool, opts *optio
 		}
 		return nil, err
 	}
+
+	consumer.startHearbeatChecks(func(id string) {
+		slog.Error("consumer expired, removing", "group", group, "consumer", id)
+		err := t.removeConsumer(group, id)
+		if err != nil {
+			slog.Error("failed to remove consumer after heartbeat check", "group", group, "consumer", id, "error", err)
+		}
+	})
 
 	slog.Info("consumer crated, consumer group rebalancing",
 		"group", group,

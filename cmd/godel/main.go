@@ -17,19 +17,23 @@ func main() {
 			cmdProduce,
 			cmdCommitoffset,
 			{
-				Name: "topic",
+				Name:    "topic",
+				Aliases: []string{"topics"},
 				Commands: []*cli.Command{
 					cmdCreateTopic,
+					cmdListTopics,
 				},
 			},
 			{
-				Name: "consumer",
+				Name:    "consumer",
+				Aliases: []string{"consumers"},
 				Commands: []*cli.Command{
 					cmdDeleteConsumer,
 				},
 			},
 			{
-				Name: "group",
+				Name:    "group",
+				Aliases: []string{"groups", "consumer-group", "consumer-groups"},
 				Commands: []*cli.Command{
 					cmdListConsumerGroups,
 				},

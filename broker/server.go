@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -199,6 +200,22 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		}
 
 		resp := b.processHeartbeatRequest(req)
+		if resp == nil {
+			return nil, nil
+		}
+		buf, err := resp.Serialize()
+		if err != nil {
+			return nil, err
+		}
+
+		return buf, nil
+	case protocol.CmdListTopics:
+		req, err := protocol.DeserializeReqListTopics(r.Payload)
+		if err != nil {
+			return nil, errors.New("failed to deserialize request")
+		}
+
+		resp := b.processListTopicsReq(req)
 		if resp == nil {
 			return nil, nil
 		}
@@ -439,6 +456,40 @@ func (b *Broker) processHeartbeatRequest(req *protocol.ReqHeartbeat) *protocol.R
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()
 		return resp
+	}
+
+	return resp
+}
+
+func (b *Broker) processListTopicsReq(req *protocol.ReqListTopics) *protocol.RespListTopics {
+	resp := &protocol.RespListTopics{
+		Topics: []protocol.ListTopicsTopic{},
+	}
+
+	topic := b.listTopics()
+
+	for k := range topic {
+		if req.NameFilter != "" && !strings.Contains(topic[k].name, req.NameFilter) {
+			continue
+		}
+
+		partitions := []uint32{}
+		groups := []string{}
+
+		for i := range topic[k].partitions {
+			partitions = append(partitions, topic[k].partitions[i].num)
+		}
+
+		for i := range topic[k].consumerGroups {
+			groups = append(groups, topic[k].consumerGroups[i].name)
+		}
+
+		resp.Topics = append(resp.Topics, protocol.ListTopicsTopic{
+			Name:       topic[k].name,
+			Partitions: partitions,
+			Groups:     groups,
+			Options:    *topic[k].options,
+		})
 	}
 
 	return resp

@@ -144,3 +144,7 @@ func (b *Broker) Run(port int) error {
 	}
 	return err
 }
+
+func (b *Broker) listTopics() []*Topic {
+	return b.topics
+}

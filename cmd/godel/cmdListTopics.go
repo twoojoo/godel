@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"godel/internal/client"
 	"os"
@@ -11,19 +10,16 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var cmdListConsumerGroups = &cli.Command{
+var cmdListTopics = &cli.Command{
 	Name:    "list",
 	Aliases: []string{"ls"},
 	Arguments: []cli.Argument{
 		&cli.StringArg{
-			Name: "topic",
+			Name: "name-filter",
 		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) (err error) {
-		topic := cmd.StringArg("topic")
-		if topic == "" {
-			return errors.New("topic must be provided")
-		}
+		nameFilter := cmd.StringArg("name-filter")
 
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
 			if err != client.ErrCloseConnection {
@@ -34,7 +30,7 @@ var cmdListConsumerGroups = &cli.Command{
 			return err
 		}
 
-		resp, err := conn.ListConsumerGroups(topic)
+		resp, err := conn.ListTopics(nameFilter)
 		if err != nil {
 			return err
 		}

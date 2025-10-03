@@ -2,6 +2,7 @@ package broker
 
 import (
 	"errors"
+	"godel/options"
 	"slices"
 	"sync"
 )
@@ -67,14 +68,14 @@ func (c *consumerGroup) rebalance() {
 }
 
 // MUST lock the consumer group before appending consumer!
-func (c *consumerGroup) apendConsumer(id string, fromBeginning bool) (*consumer, error) {
+func (c *consumerGroup) apendConsumer(id string, fromBeginning bool, opts *options.ConsumerOptions) (*consumer, error) {
 	for i := range c.consumers {
 		if c.consumers[i].id == id {
 			return nil, errors.New(errConsumerIdAlreadyExists)
 		}
 	}
 
-	consumer := c.newConsumer(id, []*Partition{}, fromBeginning)
+	consumer := c.newConsumer(id, []*Partition{}, fromBeginning, opts)
 	return consumer, nil
 }
 
@@ -106,4 +107,14 @@ func (c *consumerGroup) removeConsumer(id string) error {
 func (c *consumerGroup) commitOffset(partition uint32, offset uint64) error {
 	c.offsets[partition] = offset
 	return nil
+}
+
+func (g *consumerGroup) heartbeat(consumerID string) error {
+	for i := range g.consumers {
+		if g.consumers[i].id == consumerID {
+			g.consumers[i].heartbeat()
+		}
+	}
+
+	return errors.New(errConsumerNotFound)
 }

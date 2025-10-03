@@ -195,6 +195,22 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		}
 
 		return buf, nil
+	case protocol.CmdHeartbeat:
+		req, err := protocol.DeserializeHeartbeatRequest(r.Payload)
+		if err != nil {
+			return nil, errors.New("failed to deserialize request")
+		}
+
+		resp := b.processHeartbeatRequest(req)
+		if resp == nil {
+			return nil, nil
+		}
+		buf, err := resp.Serialize()
+		if err != nil {
+			return nil, err
+		}
+
+		return buf, nil
 	default:
 		return nil, errors.New("unknonw command " + strconv.Itoa(int(r.Cmd)))
 	}
@@ -270,7 +286,7 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 		}
 	}
 
-	consumer, err := topic.createConsumer(req.Group, req.ID, req.FromBeginning)
+	consumer, err := topic.createConsumer(req.Group, req.ID, req.FromBeginning, req.ConsumeOptions)
 	if err != nil {
 		return &protocol.RespConsume{
 			ErrorCode:    1,
@@ -394,6 +410,28 @@ func (b *Broker) processCommitOffsetRequest(req *protocol.ReqCommitOffset) *prot
 	}
 
 	err = topic.commitOffset(req.Group, req.Partition, req.Offset)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
+	}
+
+	return resp
+}
+
+func (b *Broker) processHeartbeatRequest(req *protocol.ReqHeartbeat) *protocol.RespHeartbeat {
+	resp := &protocol.RespHeartbeat{
+		ConsumerID: req.ConsumerID,
+	}
+
+	topic, err := b.GetTopic(req.Topic)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
+	}
+
+	err = topic.heartbeat(req.Group, req.ConsumerID)
 	if err != nil {
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()

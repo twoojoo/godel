@@ -217,7 +217,7 @@ func (t *Topic) produce(message *Message) (uint64, uint32, error) {
 // 	return t.partitions[0].consume(offset, callback)
 // }
 
-func (t *Topic) createConsumer(group, id string, fromBeginning bool) (*consumer, error) {
+func (t *Topic) createConsumer(group, id string, fromBeginning bool, opts *options.ConsumerOptions) (*consumer, error) {
 	if id == "" { // generate new id when group is not specified
 		id = uuid.NewString()
 	}
@@ -245,7 +245,7 @@ func (t *Topic) createConsumer(group, id string, fromBeginning bool) (*consumer,
 	defer t.consumerGroups[group].unlock()
 
 	id = group + "-" + id
-	consumer, err := t.consumerGroups[group].apendConsumer(id, fromBeginning)
+	consumer, err := t.consumerGroups[group].apendConsumer(id, fromBeginning, opts)
 	if err != nil {
 		if len(t.consumerGroups[group].consumers) == 0 && isGroupNew {
 			delete(t.consumerGroups, group)
@@ -310,6 +310,19 @@ func (t *Topic) commitOffset(group string, partition uint32, offset uint64) erro
 	defer t.consumerGroups[group].unlock()
 
 	err := t.consumerGroups[group].commitOffset(partition, offset)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *Topic) heartbeat(group, consumerID string) error {
+	if _, ok := t.consumerGroups[group]; !ok {
+		return errors.New(errConsumerGroupNotFound)
+	}
+
+	err := t.consumerGroups[group].heartbeat(consumerID)
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,9 @@
 package broker
 
 import (
+	"godel/options"
 	"sync"
+	"time"
 )
 
 // Any modification to the consumer object must
@@ -13,15 +15,17 @@ type consumer struct {
 	partitions    []*Partition
 	fromBeginning bool
 	started       bool
+	lastHeartbeat time.Time
+	options       *options.ConsumerOptions
 
-	stoppedCh    chan struct{}
-	stopCh       chan struct{}
-	newMessageCh chan struct{}
+	stoppedCh chan struct{}
+	stopCh    chan struct{}
 
-	mu sync.Mutex
+	mu         sync.Mutex
+	hearbeatMu sync.Mutex
 }
 
-func (c *consumerGroup) newConsumer(id string, partitions []*Partition, fromBeginning bool) *consumer {
+func (c *consumerGroup) newConsumer(id string, partitions []*Partition, fromBeginning bool, opts *options.ConsumerOptions) *consumer {
 	consumer := &consumer{
 		id:            id,
 		group:         c,
@@ -29,6 +33,7 @@ func (c *consumerGroup) newConsumer(id string, partitions []*Partition, fromBegi
 		fromBeginning: fromBeginning,
 		stopCh:        make(chan struct{}),
 		stoppedCh:     make(chan struct{}),
+		options:       opts,
 	}
 
 	c.consumers = append(c.consumers, consumer)
@@ -98,4 +103,19 @@ func (c *consumer) stop() {
 
 	c.stopCh <- struct{}{}
 	<-c.stoppedCh
+}
+
+func (c *consumer) heartbeat() {
+	c.hearbeatMu.Lock()
+	defer c.hearbeatMu.Unlock()
+
+	c.lastHeartbeat = time.Now()
+}
+
+func (c *consumer) heartbeatCheck() bool {
+	c.hearbeatMu.Lock()
+	defer c.hearbeatMu.Unlock()
+
+	// should check for expiration
+	return time.Now().Sub(c.lastHeartbeat) > time.Duration(c.options.SessionTimeoutMilli)
 }

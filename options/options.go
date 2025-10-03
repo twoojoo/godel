@@ -136,3 +136,35 @@ func MergeBrokerOptions(o1, o2 *BrokerOptions) {
 		o1.LogRetentionCheckIntervalMilli = o2.LogRetentionCheckIntervalMilli
 	}
 }
+
+type ConsumerOptions struct {
+	SessionTimeoutMilli    int64 `json:"session.timeout.ms"`
+	HeartbeatIntervalMilli int64 `json:"heartbeat.interval.milli"`
+}
+
+func DefaulcConsumerOption() *ConsumerOptions {
+	return &ConsumerOptions{
+		SessionTimeoutMilli:    10000, // 10 secs
+		HeartbeatIntervalMilli: 3000,  // 3 secs
+	}
+}
+
+func (o *ConsumerOptions) WithSessionTimeout(d time.Duration) *ConsumerOptions {
+	o.SessionTimeoutMilli = d.Milliseconds()
+	return o
+}
+
+func (o *ConsumerOptions) WithHeartbeatInterval(d time.Duration) *ConsumerOptions {
+	o.HeartbeatIntervalMilli = d.Milliseconds()
+	return o
+}
+
+func MergeConsumerOptions(o1, o2 *ConsumerOptions) {
+	if o1.HeartbeatIntervalMilli == 0 {
+		o1.HeartbeatIntervalMilli = o2.HeartbeatIntervalMilli
+	}
+
+	if o1.SessionTimeoutMilli == 0 {
+		o1.SessionTimeoutMilli = o2.SessionTimeoutMilli
+	}
+}

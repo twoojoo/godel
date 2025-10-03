@@ -4,15 +4,14 @@ import (
 	"encoding/json"
 )
 
-type RespCommitOffset struct {
-	Partition    *uint32 `json:"partition,omitempty"`
-	Offset       *uint64 `json:"offset,omitempty"`
-	ErrorCode    int     `json:"errorCode"`
-	ErrorMessage string  `json:"errorMessage,omitempty"`
+type RespHeartbeat struct {
+	ConsumerID   string `json:"consumerId"`
+	ErrorCode    int    `json:"errorCode"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 
-func DeserializeResponseCommitOffset(data []byte) (*RespCommitOffset, error) {
-	var resp RespCommitOffset
+func DeserializeResponseHeartbeat(data []byte) (*RespHeartbeat, error) {
+	var resp RespHeartbeat
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return nil, err
@@ -21,6 +20,6 @@ func DeserializeResponseCommitOffset(data []byte) (*RespCommitOffset, error) {
 	return &resp, nil
 }
 
-func (r *RespCommitOffset) Serialize() ([]byte, error) {
+func (r *RespHeartbeat) Serialize() ([]byte, error) {
 	return json.Marshal(r)
 }

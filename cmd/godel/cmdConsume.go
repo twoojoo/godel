@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"godel/internal/client"
 	"godel/internal/protocol"
+	"godel/options"
 	"os"
 	"os/signal"
 	"syscall"
@@ -63,6 +64,13 @@ var cmdConsume = &cli.Command{
 		if err != nil {
 			return err
 		}
+
+		opts := options.ConsumerOptions{
+			SessionTimeoutMilli:    cmd.Int64("session.timeout.ms"),
+			HeartbeatIntervalMilli: cmd.Int64("heartbeat.interval.ms"),
+		}
+
+		options.MergeConsumerOptions(&opts, options.DefaulcConsumerOption())
 
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
 			fmt.Println("error", err)
@@ -149,10 +157,11 @@ var cmdConsume = &cli.Command{
 		}()
 
 		req := protocol.ReqConsume{
-			ID:            consumerID,
-			Topic:         topic,
-			Group:         group,
-			FromBeginning: cmd.Bool("fromBeginning"),
+			ID:              consumerID,
+			Topic:           topic,
+			Group:           group,
+			FromBeginning:   cmd.Bool("fromBeginning"),
+			ConsumerOptions: opts,
 		}
 
 		reqBuf, err := req.Serialize()

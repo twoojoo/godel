@@ -34,18 +34,18 @@ func ConnectToBroker(addr string, onError func(*Connection, error)) (*Connection
 		return nil, err
 	}
 
-	requests := make(chan *protocol.BaseRequest, 100)
-
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 
 	c := &Connection{
 		reader:    reader,
 		writer:    writer,
-		requests:  requests,
 		listeners: []listener{},
 		conn:      conn,
 		onError:   onError,
+
+		requests: make(chan *protocol.BaseRequest, 100),
+		closeCh:  make(chan struct{}),
 	}
 
 	c.startListening()

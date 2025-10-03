@@ -17,7 +17,8 @@ type ConsumerGroup struct {
 }
 
 type Consumer struct {
-	ID string `json:"id"`
+	ID         string   `json:"id"`
+	Partitions []uint32 `json:"partitions"`
 }
 
 type ConsumerGroupOffset struct {

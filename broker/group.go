@@ -3,6 +3,7 @@ package broker
 import (
 	"errors"
 	"godel/options"
+	"log/slog"
 	"slices"
 	"sync"
 )
@@ -60,6 +61,11 @@ func (c *consumerGroup) rebalance() {
 	// round robin to reassign partitions
 	j := 0
 	for i := range c.topic.partitions {
+		slog.Debug("assinging partition to consumer",
+			"group", c.name,
+			"partition", c.topic.partitions[i].num,
+			"consumer", c.consumers[j].id,
+		)
 		c.consumers[j].partitions = append(c.consumers[j].partitions, c.topic.partitions[i])
 		if j >= len(c.consumers) {
 			j = 0

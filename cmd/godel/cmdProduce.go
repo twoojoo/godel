@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"godel/internal/client"
 	"godel/internal/protocol"
+	"io"
 	"os"
 	"strings"
 
@@ -43,7 +44,20 @@ var cmdProduce = &cli.Command{
 			return err
 		}
 
+		// closeCh := make(chan struct{})
+
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
+			if err == client.ErrCloseConnection || err == io.EOF {
+				fmt.Fprintf(os.Stderr, "\n")
+				fmt.Fprintf(os.Stderr, "producer forcefully disconnected\n")
+
+				if err := c.Close(); err != nil {
+					fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+				}
+
+				os.Exit(0)
+			}
+
 			fmt.Println("error", err)
 		})
 		if err != nil {
@@ -53,10 +67,6 @@ var cmdProduce = &cli.Command{
 		if cmd.Bool("showResponse") {
 			go func() {
 				err := conn.ReadMessage(corrID, func(r *protocol.BaseResponse) error {
-					// if corrID != r.CorrelationID {
-					// 	return nil
-					// }
-
 					fmt.Println(string(r.Payload))
 
 					_, err := protocol.DeserializeResponseProduce(r.Payload)
@@ -67,17 +77,17 @@ var cmdProduce = &cli.Command{
 					return nil
 				})
 				if err != nil {
-					fmt.Println("error", err)
+					fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
 				}
 			}()
 		}
 
 		for {
 			reader := bufio.NewReader(os.Stdin)
-			print(" > ")
+			fmt.Fprint(os.Stderr, " > ")
 			input, err := reader.ReadString('\n')
 			if err != nil {
-				fmt.Println("error", err)
+				fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
 			}
 
 			input = strings.TrimSuffix(input, "\n")
@@ -106,7 +116,7 @@ var cmdProduce = &cli.Command{
 
 			err = conn.SendMessage(msg)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
 			}
 		}
 	},

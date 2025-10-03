@@ -378,8 +378,14 @@ func (b *Broker) processListConsumerGroupsReq(req *protocol.ReqListConsumerGroup
 		}
 
 		for i := range groups[k].consumers {
+			consumerPartitions := make([]uint32, len(groups[k].consumers[i].partitions))
+			for i := range groups[k].consumers[i].partitions {
+				consumerPartitions[i] = groups[k].consumers[i].partitions[i].num
+			}
+
 			consumers = append(consumers, protocol.Consumer{
-				ID: groups[k].consumers[i].id,
+				ID:         groups[k].consumers[i].id,
+				Partitions: consumerPartitions,
 			})
 		}
 

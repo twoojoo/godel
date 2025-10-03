@@ -20,7 +20,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [x] Topics
 - [x] TCP protocol
 - [x] Concurrent request handling
-- [ ] CLI 
+- [ ] Commands 
     - [x] Run server
     - [ ] Edit server
     - [x] Create topics

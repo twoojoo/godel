@@ -40,7 +40,7 @@ var cmdCommitoffset = &cli.Command{
 		partition := cmd.Uint32Arg("partition")
 		offset := cmd.Uint64Arg("offset")
 
-		conn, err := client.ConnectToBroker(getAddr(cmd))
+		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {})
 		if err != nil {
 			return err
 		}

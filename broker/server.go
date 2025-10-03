@@ -43,6 +43,8 @@ func (b *Broker) handleConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 
+	responses := make(chan *protocol.BaseResponse, 100)
+
 	for {
 		req, err := protocol.DeserializeRequest(reader)
 		if err == io.EOF {
@@ -55,33 +57,36 @@ func (b *Broker) handleConnection(conn net.Conn) {
 			return
 		}
 
-		responder := func(resp *protocol.BaseResponse) error {
-			err = writeFull(writer, resp.Serialize())
-			if err != nil {
-				return err
+		// responses goroutine
+		go func() {
+			for resp := range responses {
+				if err := writeFull(writer, resp.Serialize()); err != nil {
+					slog.Error("failed to send response", "error", err)
+					return
+				}
+			}
+		}()
+
+		// requests goroutine
+		go func(req *protocol.BaseRequest) {
+			responder := func(resp *protocol.BaseResponse) {
+				responses <- resp
 			}
 
-			return nil
-		}
+			respPayload, err := b.processRequest(req, responder)
+			if err != nil {
+				slog.Error("error while processing request", "error", err)
+				return
+			}
+			if respPayload == nil {
+				return
+			}
 
-		respPayload, err := b.processRequest(req, responder)
-		if err != nil {
-			slog.Error("error while processing request", "error", err)
-			continue
-		}
-		if respPayload == nil {
-			continue
-		}
-
-		resp := protocol.BaseResponse{
-			CorrelationID: req.CorrelationID,
-			Payload:       respPayload,
-		}
-
-		err = writeFull(writer, resp.Serialize())
-		if err != nil {
-			slog.Error("failed to send response to client")
-		}
+			responses <- &protocol.BaseResponse{
+				CorrelationID: req.CorrelationID,
+				Payload:       respPayload,
+			}
+		}(req)
 	}
 }
 
@@ -98,7 +103,7 @@ func writeFull(w *bufio.Writer, data []byte) error {
 	return w.Flush()
 }
 
-func (b *Broker) processRequest(req *protocol.BaseRequest, responder func(resp *protocol.BaseResponse) error) ([]byte, error) {
+func (b *Broker) processRequest(req *protocol.BaseRequest, responder func(resp *protocol.BaseResponse)) ([]byte, error) {
 	switch req.ApiVersion {
 	case 0:
 		return b.processApiV0Request(req, responder)
@@ -107,7 +112,7 @@ func (b *Broker) processRequest(req *protocol.BaseRequest, responder func(resp *
 	}
 }
 
-func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(resp *protocol.BaseResponse) error) ([]byte, error) {
+func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(resp *protocol.BaseResponse)) ([]byte, error) {
 	switch r.Cmd {
 	case protocol.CmdCreateTopics:
 		req, err := protocol.DeserializeRequestCreateTopic(r.Payload)
@@ -256,7 +261,7 @@ func (b *Broker) processProduceReq(req *protocol.ReqProduce) ([]byte, error) {
 	return respBuf, nil
 }
 
-func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responder func(resp *protocol.BaseResponse) error) *protocol.RespConsume {
+func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responder func(resp *protocol.BaseResponse)) *protocol.RespConsume {
 	topic, err := b.GetTopic(req.Topic)
 	if err != nil {
 		return &protocol.RespConsume{
@@ -296,7 +301,8 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 			Payload:       respBuf,
 		}
 
-		return responder(&resp)
+		responder(&resp)
+		return nil
 	})
 
 	if err != nil {

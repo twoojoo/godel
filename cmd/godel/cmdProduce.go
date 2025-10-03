@@ -43,17 +43,19 @@ var cmdProduce = &cli.Command{
 			return err
 		}
 
-		conn, err := client.ConnectToBroker(getAddr(cmd))
+		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
+			fmt.Println("error", err)
+		})
 		if err != nil {
 			return err
 		}
 
 		if cmd.Bool("showResponse") {
 			go func() {
-				err := conn.ReadMessage(func(r *protocol.BaseResponse) error {
-					if corrID != r.CorrelationID {
-						return nil
-					}
+				err := conn.ReadMessage(corrID, func(r *protocol.BaseResponse) error {
+					// if corrID != r.CorrelationID {
+					// 	return nil
+					// }
 
 					fmt.Println(string(r.Payload))
 

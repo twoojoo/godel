@@ -32,7 +32,9 @@ var cmdCreateTopic = &cli.Command{
 			return errors.New("name is required")
 		}
 
-		conn, err := client.ConnectToBroker(getAddr(cmd))
+		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
+			fmt.Println("error", err)
+		})
 		if err != nil {
 			return err
 		}

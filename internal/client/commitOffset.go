@@ -36,10 +36,10 @@ func (c *Connection) CommitOffset(topic, group string, partition uint32, offset 
 	}
 
 	ch := make(chan *protocol.RespCommitOffset, 1)
-	err = c.ReadMessage(func(r *protocol.BaseResponse) error {
-		if msg.CorrelationID != r.CorrelationID {
-			return nil
-		}
+	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
+		// if msg.CorrelationID != r.CorrelationID {
+		// 	return nil
+		// }
 
 		resp, err := protocol.DeserializeResponseCommitOffset(r.Payload)
 		if err != nil {

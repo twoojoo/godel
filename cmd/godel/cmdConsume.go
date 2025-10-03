@@ -64,7 +64,9 @@ var cmdConsume = &cli.Command{
 			return err
 		}
 
-		conn, err := client.ConnectToBroker(getAddr(cmd))
+		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
+			fmt.Println("error", err)
+		})
 		if err != nil {
 			return err
 		}
@@ -74,11 +76,6 @@ var cmdConsume = &cli.Command{
 		close := func() {
 			if alreadyClosed {
 				return
-			}
-
-			conn, err := client.ConnectToBroker(getAddr(cmd))
-			if err != nil {
-				fmt.Println(err)
 			}
 
 			if group == "" {
@@ -101,10 +98,10 @@ var cmdConsume = &cli.Command{
 
 		go func() {
 			count := 0
-			conn.ReadMessage(func(r *protocol.BaseResponse) error {
-				if corrID != r.CorrelationID {
-					return nil
-				}
+			conn.ReadMessage(corrID, func(r *protocol.BaseResponse) error {
+				// if corrID != r.CorrelationID {
+				// 	return nil
+				// }
 
 				resp, err := protocol.DeserializeResponseConsume(r.Payload)
 				if err != nil {

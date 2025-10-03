@@ -40,10 +40,10 @@ func (c *Connection) CreateTopics(name string, opts *options.TopicOptions) (*pro
 	}
 
 	ch := make(chan *protocol.RespCreateTopics, 1)
-	err = c.ReadMessage(func(r *protocol.BaseResponse) error {
-		if msg.CorrelationID != r.CorrelationID {
-			return nil
-		}
+	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
+		// if msg.CorrelationID != r.CorrelationID {
+		// 	return nil
+		// }
 
 		resp, err := protocol.DeserializeResponseCreateTopic(r.Payload)
 		if err != nil {

@@ -15,7 +15,12 @@ type GodelClient struct {
 func Connect(host string, port int) (*GodelClient, error) {
 	addr := host + ":" + strconv.Itoa(port)
 
-	conn, err := client.ConnectToBroker(addr)
+	conn, err := client.ConnectToBroker(addr, func(c *client.Connection, err error) {
+		c.Close()
+
+		// to handle
+	})
+
 	if err != nil {
 		return nil, err
 	}

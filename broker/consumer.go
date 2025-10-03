@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"fmt"
 	"godel/options"
 	"sync"
 	"time"
@@ -126,7 +125,7 @@ func (c *consumer) heartbeatCheck() bool {
 
 	age := time.Since(c.lastHeartbeat)
 	maxAge := time.Duration(c.options.SessionTimeoutMilli) * time.Millisecond
-	fmt.Println(age, maxAge)
+
 	return age > maxAge
 }
 

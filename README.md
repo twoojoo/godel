@@ -24,11 +24,13 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [x] Run server
     - [ ] Edit server
     - [x] Create topics
+    - [ ] List topics
     - [ ] Delete topics
     - [ ] Edit topics
     - [x] Produce
     - [x] Consume
     - [x] Commit
+    - [x] List consumer groups
     - [ ] Create consumer group
     - [ ] Delete consumer group
 - [x] Consumer groups

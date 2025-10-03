@@ -47,7 +47,7 @@ func (b *Broker) handleConnection(conn net.Conn) {
 	for {
 		req, err := protocol.DeserializeRequest(reader)
 		if err == io.EOF {
-			slog.Info("client disconnected, closing connection")
+			slog.Debug("client disconnected, closing connection")
 			return
 
 		}

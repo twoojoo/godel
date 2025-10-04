@@ -18,6 +18,8 @@ const errConsumerGroupNotFound = "consumer.group.not.found"
 const errConsumerNotFound = "consumer.not.found"
 const errConsumerGroupsOffsetsMismatch = "cosumer.groups.offsets.mismatch"
 const errConsumerGroupsPartitionsMismatch = "consumer.groups.partitions.mismatch"
+const errMissingGroupName = "missing.group.name"
+const errMissingConsumerId = "missing.consumer.id"
 
 type Topic struct {
 	name           string
@@ -285,6 +287,14 @@ func (t *Topic) createConsumerGroups(names []string, offsets []map[uint32]uint64
 }
 
 func (t *Topic) getConsumer(group, id string) (*consumer, error) {
+	if group == "" {
+		return nil, errors.New(errMissingGroupName)
+	}
+
+	if id == "" {
+		return nil, errors.New(errMissingConsumerId)
+	}
+
 	cg, ok := t.consumerGroups[group]
 	if !ok {
 		return nil, errors.New(errConsumerGroupNotFound)
@@ -300,6 +310,10 @@ func (t *Topic) getConsumer(group, id string) (*consumer, error) {
 }
 
 func (t *Topic) createConsumer(group, id string, opts *options.ConsumerOptions) (*consumer, error) {
+	if group == "" {
+		return nil, errors.New(errMissingGroupName)
+	}
+
 	if id == "" { // generate new id when group is not specified
 		id = group + uuid.NewString()
 	}
@@ -347,6 +361,14 @@ func (t *Topic) createConsumer(group, id string, opts *options.ConsumerOptions) 
 }
 
 func (t *Topic) removeConsumer(group string, id string) error {
+	if group == "" {
+		return errors.New(errMissingGroupName)
+	}
+
+	if id == "" {
+		return errors.New(errMissingConsumerId)
+	}
+
 	if _, ok := t.consumerGroups[group]; !ok {
 		return errors.New(errConsumerGroupNotFound)
 	}
@@ -386,6 +408,10 @@ func (t *Topic) listConsumerGroups() map[string]*consumerGroup {
 }
 
 func (t *Topic) commitOffset(group string, partition uint32, offset uint64) error {
+	if group == "" {
+		return errors.New(errMissingGroupName)
+	}
+
 	if _, ok := t.consumerGroups[group]; !ok {
 		return errors.New(errConsumerGroupNotFound)
 	}
@@ -409,12 +435,20 @@ func (t *Topic) commitOffset(group string, partition uint32, offset uint64) erro
 	return nil
 }
 
-func (t *Topic) heartbeat(group, consumerID string) error {
+func (t *Topic) heartbeat(group, id string) error {
+	if group == "" {
+		return errors.New(errMissingGroupName)
+	}
+
+	if id == "" {
+		return errors.New(errMissingConsumerId)
+	}
+
 	if _, ok := t.consumerGroups[group]; !ok {
 		return errors.New(errConsumerGroupNotFound)
 	}
 
-	err := t.consumerGroups[group].heartbeat(consumerID)
+	err := t.consumerGroups[group].heartbeat(id)
 	if err != nil {
 		return err
 	}

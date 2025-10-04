@@ -24,6 +24,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [x] Run server
     - [ ] Edit server
     - [x] Create topics
+    - [ ] Get topic
     - [x] List topics
     - [x] Delete topics
     - [ ] Edit topics
@@ -31,6 +32,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [x] Consume
     - [x] Commit
     - [x] List consumer groups
+    - [ ] Get consumer group
     - [ ] Create consumer group
     - [ ] Delete consumer group
     - [x] Create consumer

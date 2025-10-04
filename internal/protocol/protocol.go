@@ -8,16 +8,17 @@ import (
 )
 
 const (
-	CmdProduce        int16 = 0
-	CmdConsume        int16 = 1
-	CmdListTopics     int16 = 2
-	CmdCreateConsumer int16 = 3
-	CmdDeleteTopic    int16 = 4
-	CmdCommitOffset   int16 = 8
-	CmdHeartbeat      int16 = 12
-	CmdDeleteConsumer int16 = 13
-	CmdListGroups     int16 = 16
-	CmdCreateTopics   int16 = 19
+	CmdProduce         int16 = 0
+	CmdConsume         int16 = 1
+	CmdListTopics      int16 = 2
+	CmdCreateConsumer  int16 = 3
+	CmdDeleteTopic     int16 = 4
+	CmdNotifyRebalabce int16 = 5
+	CmdCommitOffset    int16 = 8
+	CmdHeartbeat       int16 = 12
+	CmdDeleteConsumer  int16 = 13
+	CmdListGroups      int16 = 16
+	CmdCreateTopics    int16 = 19
 )
 
 type BaseRequest struct {

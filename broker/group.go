@@ -35,10 +35,12 @@ func (c *consumerGroup) stop() {
 
 // reassign partitions
 //
-// MUST stop the consumer group befare calling this!
-//
 // MUST call the .lock() and .unlock() methods!
 func (c *consumerGroup) rebalance() {
+	for i := range c.consumers {
+		c.consumers[i].stop()
+	}
+
 	shuffleSlice(c.consumers)
 
 	// clear assigned partitions

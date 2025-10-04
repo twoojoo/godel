@@ -342,7 +342,7 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 		}
 	}
 
-	err = consumer.start(func(message *Message) error {
+	onMessage := func(message *Message) error {
 		r := protocol.RespConsume{
 			Messages: []protocol.RespConsumeMessage{
 				{
@@ -367,8 +367,9 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 
 		responder(&resp)
 		return nil
-	})
+	}
 
+	err = consumer.start(cID, onMessage, responder)
 	if err != nil {
 		return &protocol.RespConsume{
 			ErrorCode:    1,

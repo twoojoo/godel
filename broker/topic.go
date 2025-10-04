@@ -64,7 +64,6 @@ func (t *Topic) loadOptions() error {
 
 func newTopic(name string, topicOptions *options.TopicOptions, brokerOptions *options.BrokerOptions) (*Topic, error) {
 	topicPath := fmt.Sprintf("%s/%s", brokerOptions.BasePath, name)
-	// topicOptsPath := fmt.Sprintf("%s/%s/options.json", brokerOptions.BasePath, name)
 
 	if _, err := os.Stat(topicPath); os.IsNotExist(err) {
 		err = os.Mkdir(topicPath, 0755)

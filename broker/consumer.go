@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"godel/internal/protocol"
 	"godel/options"
 	"sync"
 	"time"
@@ -18,6 +19,9 @@ type consumer struct {
 	lastHeartbeat time.Time
 	options       *options.ConsumerOptions
 
+	correlationID *int32
+	responder     func(*protocol.BaseResponse)
+
 	stoppedCh chan struct{}
 	stopCh    chan struct{}
 	deleteCh  chan struct{}
@@ -28,10 +32,9 @@ type consumer struct {
 
 func (c *consumerGroup) newConsumer(id string, partitions []*Partition, opts *options.ConsumerOptions) *consumer {
 	consumer := &consumer{
-		id:         id,
-		group:      c,
-		partitions: partitions,
-		// fromBeginning: fromBeginning,
+		id:            id,
+		group:         c,
+		partitions:    partitions,
 		stopCh:        make(chan struct{}),
 		stoppedCh:     make(chan struct{}),
 		deleteCh:      make(chan struct{}, 1),
@@ -51,12 +54,54 @@ func (c *consumer) unlock() {
 	c.mu.Unlock()
 }
 
-func (c *consumer) start(callback func(m *Message) error) error {
+func (c *consumer) clearResponder() {
+	c.correlationID = nil
+	c.responder = nil
+}
+
+func (c *consumer) setResponder(corrID int32, responder func(*protocol.BaseResponse)) {
+	c.correlationID = nil
+	c.responder = nil
+}
+
+func (c *consumer) respond(msg *protocol.BaseResponse) bool {
+	if c.responder != nil || c.correlationID == nil {
+		c.responder(msg)
+		return true
+	}
+
+	return false
+}
+
+func (c *consumer) sendRebalanceNotif() bool {
+	if c.correlationID == nil {
+		return false
+	}
+
+	notif := protocol.RespNotifyRebalance{
+		Group: c.group.name,
+	}
+
+	buf, _ := protocol.Serialize(notif)
+	// should check error
+
+	msg := protocol.BaseResponse{
+		CorrelationID: *c.correlationID,
+		Payload:       buf,
+	}
+
+	return c.respond(&msg)
+}
+
+func (c *consumer) start(correlationID int32, callback func(m *Message) error, responder func(*protocol.BaseResponse)) error {
 	c.mu.Lock()
 	defer func() {
 		c.started = false
 	}()
 	defer c.mu.Unlock()
+
+	c.setResponder(correlationID, responder)
+	defer c.clearResponder()
 
 	c.started = true
 	messageCh := make(chan *Message)

@@ -109,3 +109,7 @@ type RespDeleteTopic struct {
 	ErrorCode    int    `json:"errorCode"`
 	ErrorMessage string `json:"errorMessage,omitempty"`
 }
+
+type RespNotifyRebalance struct {
+	Group string `json:"group"`
+}

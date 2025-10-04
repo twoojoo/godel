@@ -33,7 +33,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [x] List consumer groups
     - [ ] Create consumer group
     - [ ] Delete consumer group
-    - [ ] Create consumer
+    - [x] Create consumer
     - [x] Delete consumer
 - [x] Consumer groups
 - [x] Consumer rebalancing

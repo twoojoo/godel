@@ -14,7 +14,7 @@ func (c *Connection) ListTopics(nameFilter string) (*protocol.RespListTopics, er
 		NameFilter: nameFilter,
 	}
 
-	reqBuf, err := req.Serialize()
+	reqBuf, err := protocol.Serialize(req)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (c *Connection) ListTopics(nameFilter string) (*protocol.RespListTopics, er
 
 	ch := make(chan *protocol.RespListTopics, 1)
 	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
-		resp, err := protocol.DeserializeListTopicsResponse(r.Payload)
+		resp, err := protocol.Deserialize[protocol.RespListTopics](r.Payload)
 		if err != nil {
 			return err
 		}

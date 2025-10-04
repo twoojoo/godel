@@ -156,11 +156,7 @@ var cmdConsume = &cli.Command{
 		go func() {
 			count := 0
 			conn.ReadMessage(corrID, func(r *protocol.BaseResponse) error {
-				// if corrID != r.CorrelationID {
-				// 	return nil
-				// }
-
-				resp, err := protocol.DeserializeResponseConsume(r.Payload)
+				resp, err := protocol.Deserialize[protocol.RespConsume](r.Payload)
 				if err != nil {
 					return err
 				}
@@ -215,7 +211,7 @@ var cmdConsume = &cli.Command{
 			ConsumerOptions: opts,
 		}
 
-		reqBuf, err := req.Serialize()
+		reqBuf, err := protocol.Serialize(req)
 		if err != nil {
 			return err
 		}

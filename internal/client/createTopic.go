@@ -13,7 +13,7 @@ func (c *Connection) CreateTopics(name string, opts *options.TopicOptions) (*pro
 
 	options.MergeTopicOptions(opts, options.DefaultTopicOptions())
 
-	req := protocol.ReqCreateTopic{
+	req := protocol.ReqCreateTopics{
 		Topics: []protocol.ReqCreateTopicTopic{
 			{
 				Name:    name,
@@ -22,7 +22,7 @@ func (c *Connection) CreateTopics(name string, opts *options.TopicOptions) (*pro
 		},
 	}
 
-	reqBuf, err := req.Serialize()
+	reqBuf, err := protocol.Serialize(req)
 	if err != nil {
 		return nil, err
 	}
@@ -41,11 +41,7 @@ func (c *Connection) CreateTopics(name string, opts *options.TopicOptions) (*pro
 
 	ch := make(chan *protocol.RespCreateTopics, 1)
 	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
-		// if msg.CorrelationID != r.CorrelationID {
-		// 	return nil
-		// }
-
-		resp, err := protocol.DeserializeResponseCreateTopic(r.Payload)
+		resp, err := protocol.Deserialize[protocol.RespCreateTopics](r.Payload)
 		if err != nil {
 			return err
 		}

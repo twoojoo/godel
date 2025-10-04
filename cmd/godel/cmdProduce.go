@@ -69,7 +69,7 @@ var cmdProduce = &cli.Command{
 				err := conn.ReadMessage(corrID, func(r *protocol.BaseResponse) error {
 					fmt.Println(string(r.Payload))
 
-					_, err := protocol.DeserializeResponseProduce(r.Payload)
+					_, err := protocol.Deserialize[protocol.RespProduce](r.Payload)
 					if err != nil {
 						return err
 					}
@@ -102,7 +102,7 @@ var cmdProduce = &cli.Command{
 				},
 			}
 
-			reqBuf, err := req.Serialize()
+			reqBuf, err := protocol.Serialize(req)
 			if err != nil {
 				return err
 			}

@@ -115,21 +115,21 @@ func (b *Broker) processRequest(req *protocol.BaseRequest, responder func(resp *
 func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(resp *protocol.BaseResponse)) ([]byte, error) {
 	switch r.Cmd {
 	case protocol.CmdCreateTopics:
-		req, err := protocol.DeserializeRequestCreateTopic(r.Payload)
+		req, err := protocol.Deserialize[protocol.ReqCreateTopics](r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
 		}
 
 		return b.processCreateTopicsReq(req)
 	case protocol.CmdProduce:
-		req, err := protocol.DeserializeRequestProduce(r.Payload)
+		req, err := protocol.Deserialize[protocol.ReqProduce](r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
 		}
 
 		return b.processProduceReq(req)
 	case protocol.CmdConsume:
-		req, err := protocol.DeserializeRequestConsume(r.Payload)
+		req, err := protocol.Deserialize[protocol.ReqConsume](r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
 		}
@@ -138,14 +138,15 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		if resp == nil {
 			return nil, nil
 		}
-		buf, err := resp.Serialize()
+
+		buf, err := protocol.Serialize(resp)
 		if err != nil {
 			return nil, err
 		}
 
 		return buf, nil
-	case protocol.CmdLeaveGroup:
-		req, err := protocol.DeserializeRequestDeleteConsumer(r.Payload)
+	case protocol.CmdDeleteConsumer:
+		req, err := protocol.Deserialize[protocol.ReqDeleteConsumer](r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
 		}
@@ -155,14 +156,14 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		if resp == nil {
 			return nil, nil
 		}
-		buf, err := resp.Serialize()
+		buf, err := protocol.Serialize(resp)
 		if err != nil {
 			return nil, err
 		}
 
 		return buf, nil
 	case protocol.CmdListGroups:
-		req, err := protocol.DeserializeReqListConsumerGroups(r.Payload)
+		req, err := protocol.Deserialize[protocol.ReqListConsumerGroups](r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
 		}
@@ -171,14 +172,14 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		if resp == nil {
 			return nil, nil
 		}
-		buf, err := resp.Serialize()
+		buf, err := protocol.Serialize(resp)
 		if err != nil {
 			return nil, err
 		}
 
 		return buf, nil
 	case protocol.CmdOffsetCommit:
-		req, err := protocol.DeserializeCommitOffsetRequest(r.Payload)
+		req, err := protocol.Deserialize[protocol.ReqCommitOffset](r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
 		}
@@ -187,14 +188,14 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		if resp == nil {
 			return nil, nil
 		}
-		buf, err := resp.Serialize()
+		buf, err := protocol.Serialize(resp)
 		if err != nil {
 			return nil, err
 		}
 
 		return buf, nil
 	case protocol.CmdHeartbeat:
-		req, err := protocol.DeserializeHeartbeatRequest(r.Payload)
+		req, err := protocol.Deserialize[protocol.ReqHeartbeat](r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
 		}
@@ -203,14 +204,14 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		if resp == nil {
 			return nil, nil
 		}
-		buf, err := resp.Serialize()
+		buf, err := protocol.Serialize(resp)
 		if err != nil {
 			return nil, err
 		}
 
 		return buf, nil
 	case protocol.CmdListTopics:
-		req, err := protocol.DeserializeReqListTopics(r.Payload)
+		req, err := protocol.Deserialize[protocol.ReqListTopics](r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
 		}
@@ -219,7 +220,7 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		if resp == nil {
 			return nil, nil
 		}
-		buf, err := resp.Serialize()
+		buf, err := protocol.Serialize(resp)
 		if err != nil {
 			return nil, err
 		}
@@ -230,7 +231,7 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 	}
 }
 
-func (b *Broker) processCreateTopicsReq(req *protocol.ReqCreateTopic) ([]byte, error) {
+func (b *Broker) processCreateTopicsReq(req *protocol.ReqCreateTopics) ([]byte, error) {
 	var resp protocol.RespCreateTopics
 	resp.Topics = make([]protocol.RespCreateTopicTopic, 0, len(req.Topics))
 
@@ -250,7 +251,7 @@ func (b *Broker) processCreateTopicsReq(req *protocol.ReqCreateTopic) ([]byte, e
 		})
 	}
 
-	respBuf, err := resp.Serialize()
+	respBuf, err := protocol.Serialize(resp)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +284,7 @@ func (b *Broker) processProduceReq(req *protocol.ReqProduce) ([]byte, error) {
 		})
 	}
 
-	respBuf, err := resp.Serialize()
+	respBuf, err := protocol.Serialize(resp)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +322,7 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 			},
 		}
 
-		respBuf, err := r.Serialize()
+		respBuf, err := protocol.Serialize(r)
 		if err != nil {
 			return err
 		}

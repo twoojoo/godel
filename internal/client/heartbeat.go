@@ -17,7 +17,7 @@ func (c *Connection) Heartbeat(topic, group string, consumerID string) (*protoco
 		ConsumerID: consumerID,
 	}
 
-	reqBuf, err := req.Serialize()
+	reqBuf, err := protocol.Serialize(req)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (c *Connection) Heartbeat(topic, group string, consumerID string) (*protoco
 		// 	return nil
 		// }
 
-		resp, err := protocol.DeserializeResponseHeartbeat(r.Payload)
+		resp, err := protocol.Deserialize[protocol.RespHeartbeat](r.Payload)
 		if err != nil {
 			return err
 		}

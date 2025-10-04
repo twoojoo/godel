@@ -14,7 +14,7 @@ func (c *Connection) ListConsumerGroups(topic string) (*protocol.RespListConsume
 		Topic: topic,
 	}
 
-	reqBuf, err := req.Serialize()
+	reqBuf, err := protocol.Serialize(req)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (c *Connection) ListConsumerGroups(topic string) (*protocol.RespListConsume
 		// 	return nil
 		// }
 
-		resp, err := protocol.DeserializeResponseListConsumerGroups(r.Payload)
+		resp, err := protocol.Deserialize[protocol.RespListConsumerGroups](r.Payload)
 		if err != nil {
 			return err
 		}

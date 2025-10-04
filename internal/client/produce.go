@@ -21,7 +21,7 @@ func (c *Connection) Produce(topic string, key, payload []byte) (*protocol.RespC
 		},
 	}
 
-	reqBuf, err := req.Serialize()
+	reqBuf, err := protocol.Serialize(req)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (c *Connection) Produce(topic string, key, payload []byte) (*protocol.RespC
 		// 	return nil
 		// }
 
-		resp, err := protocol.DeserializeResponseCreateTopic(r.Payload)
+		resp, err := protocol.Deserialize[protocol.RespCreateTopics](r.Payload)
 		if err != nil {
 			return err
 		}

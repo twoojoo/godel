@@ -16,13 +16,13 @@ func (c *Connection) DeleteConsumer(topic, group, id string) (*protocol.RespDele
 		Topic: topic,
 	}
 
-	reqBuf, err := req.Serialize()
+	reqBuf, err := protocol.Serialize(req)
 	if err != nil {
 		return nil, err
 	}
 
 	msg := &protocol.BaseRequest{
-		Cmd:           protocol.CmdLeaveGroup,
+		Cmd:           protocol.CmdDeleteConsumer,
 		ApiVersion:    0,
 		CorrelationID: corrID,
 		Payload:       reqBuf,
@@ -35,8 +35,7 @@ func (c *Connection) DeleteConsumer(topic, group, id string) (*protocol.RespDele
 
 	ch := make(chan *protocol.RespDeleteConsumer, 1)
 	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
-
-		resp, err := protocol.DeserializeResponseDeleteConsumer(r.Payload)
+		resp, err := protocol.Deserialize[protocol.RespDeleteConsumer](r.Payload)
 		if err != nil {
 			return err
 		}

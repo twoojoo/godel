@@ -18,7 +18,7 @@ func (c *Connection) CommitOffset(topic, group string, partition uint32, offset 
 		Offset:    offset,
 	}
 
-	reqBuf, err := req.Serialize()
+	reqBuf, err := protocol.Serialize(req)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (c *Connection) CommitOffset(topic, group string, partition uint32, offset 
 		// 	return nil
 		// }
 
-		resp, err := protocol.DeserializeResponseCommitOffset(r.Payload)
+		resp, err := protocol.Deserialize[protocol.RespCommitOffset](r.Payload)
 		if err != nil {
 			return err
 		}

@@ -31,13 +31,13 @@ type Segment struct {
 	baseOffset uint64
 	nextOffset uint64
 	logFile    *os.File
-	currSize   uint32
-	maxSize    int32
+	currSize   int64
+	maxSize    int64
 	capped     bool
 }
 
 // newSegment initializes a segment by opening the file descriptor to the segment log file.
-func newSegment(basePath, topicName string, partition uint32, baseOffset uint64, maxSize int32) (*Segment, error) {
+func newSegment(basePath, topicName string, partition uint32, baseOffset uint64, maxSize int64) (*Segment, error) {
 	logFileName := strconv.Itoa(int(baseOffset)) + ".log"
 	logFilePath := fmt.Sprintf("%s/%s/%v/%s", basePath, topicName, partition, logFileName)
 
@@ -56,7 +56,7 @@ func newSegment(basePath, topicName string, partition uint32, baseOffset uint64,
 	}, nil
 }
 
-func loadSegment(basePath, topicName string, partition uint32, baseOffset uint64, maxSize int32) (*Segment, error) {
+func loadSegment(basePath, topicName string, partition uint32, baseOffset uint64, maxSize int64) (*Segment, error) {
 	segment, err := newSegment(basePath, topicName, partition, baseOffset, maxSize)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func (s *Segment) loadOffsetsAndSizes() error {
 	pos := int64(0)
 	var baseOffset uint64
 	var nextOffset uint64
-	var currSize uint32
+	var currSize int64
 
 	for {
 		messageOffsetBuf := make([]byte, 8)
@@ -105,7 +105,7 @@ func (s *Segment) loadOffsetsAndSizes() error {
 		}
 
 		nextOffset = messageOffset + 1
-		currSize += messageSize
+		currSize += int64(messageSize)
 
 		pos += int64(messageSize)
 	}
@@ -180,7 +180,7 @@ func (s *Segment) appendBlob(blob []byte) (uint64, *appendError) {
 
 	offset := s.nextOffset
 	s.nextOffset++
-	s.currSize += uint32(len(blob))
+	s.currSize += int64(len(blob))
 
 	return offset, nil
 }

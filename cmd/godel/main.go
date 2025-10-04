@@ -24,6 +24,7 @@ func main() {
 				Name:    "topic",
 				Aliases: []string{"topics"},
 				Commands: []*cli.Command{
+					cmdGetTopic,
 					cmdCreateTopic,
 					cmdListTopics,
 					cmdDeleteTopic,

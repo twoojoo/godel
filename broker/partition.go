@@ -103,8 +103,8 @@ func (p *Partition) getNextOffset() uint64 {
 	return p.segments[len(p.segments)-1].nextOffset
 }
 
-func (p *Partition) getSize() uint32 {
-	var size uint32
+func (p *Partition) getSize() int64 {
+	var size int64
 	for i := range p.segments {
 		size += p.segments[i].currSize
 	}

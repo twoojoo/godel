@@ -15,20 +15,19 @@ type TopicOptions struct {
 	NumPartitions   uint32        `json:"num.partitions"`
 	CleanupPolicy   CleanupPolicy `json:"cleanup.policy"`
 	RetentionMilli  int64         `json:"retenton.ms"`
-	RetentionBytes  int32         `json:"retention.bytes"`
-	SegmentBytes    int32         `json:"segment.bytes"`
-	MaxMessageBytes int32         `json:"max.message.bytes"`
+	RetentionBytes  int64         `json:"retention.bytes"`
+	SegmentBytes    int64         `json:"segment.bytes"`
+	MaxMessageBytes int64         `json:"max.message.bytes"`
 }
 
 func DefaultTopicOptions() *TopicOptions {
 	return &TopicOptions{
-		NumPartitions:   1,                   // single partition
-		CleanupPolicy:   CleanupPolicyDelete, // delete
-		RetentionMilli:  604800000,           // 7 days
-		RetentionBytes:  -1,                  // no limit
-		SegmentBytes:    1073741824,          // 1 GiB
-		MaxMessageBytes: 604800000,           // 7 days
-		// Partitioner:           DefaultPartitioner,  // murmur2
+		NumPartitions:   DefaultNumPartitions,   // single partition
+		CleanupPolicy:   CleanupPolicyDelete,    // delete
+		RetentionMilli:  DefaultRetentionMs,     // 7 days
+		RetentionBytes:  DefaultRetentionBytes,  // no limit
+		SegmentBytes:    GigaByte,               // 1 GiB
+		MaxMessageBytes: DefaultMaxMessageBytes, // 7 days
 	}
 }
 
@@ -42,22 +41,22 @@ func (t *TopicOptions) WithCleanupPolicy(p CleanupPolicy) *TopicOptions {
 	return t
 }
 
-func (t *TopicOptions) WithRetentionMilli(d time.Duration) *TopicOptions {
+func (t *TopicOptions) WithRetentionTime(d time.Duration) *TopicOptions {
 	t.RetentionMilli = d.Milliseconds()
 	return t
 }
 
-func (t *TopicOptions) WithRetentionBytes(b int32) *TopicOptions {
+func (t *TopicOptions) WithRetentionBytes(b int64) *TopicOptions {
 	t.RetentionBytes = b
 	return t
 }
 
-func (t *TopicOptions) WithSegmentBytes(b int32) *TopicOptions {
+func (t *TopicOptions) WithSegmentBytes(b int64) *TopicOptions {
 	t.SegmentBytes = b
 	return t
 }
 
-func (t *TopicOptions) WithMaxMessageBytes(b int32) *TopicOptions {
+func (t *TopicOptions) WithMaxMessageBytes(b int64) *TopicOptions {
 	t.MaxMessageBytes = b
 	return t
 }
@@ -95,8 +94,8 @@ type BrokerOptions struct {
 
 func DeafaultBrokerOptions() *BrokerOptions {
 	return &BrokerOptions{
-		BasePath:                       "./godel_data",
-		LogRetentionCheckIntervalMilli: 300000, // 5 mins
+		BasePath:                       DefaultBasePath,
+		LogRetentionCheckIntervalMilli: DefaultLogRetentionCheckIntervalMs, // 5 mins
 	}
 }
 
@@ -147,9 +146,9 @@ type ConsumerOptions struct {
 
 func DefaulcConsumerOption() *ConsumerOptions {
 	return &ConsumerOptions{
-		SessionTimeoutMilli:     10000, // 10 secs
-		HeartbeatIntervalMilli:  3000,  // 3 secs
-		AutoCommitIntervalMilli: 5000,
+		SessionTimeoutMilli:     DefaultSessionTimeoutMs,    // 10 secs
+		HeartbeatIntervalMilli:  DefaultHeartbeatIntervalMs, // 3 secs
+		AutoCommitIntervalMilli: DefaultAutoCommitIntervalMs,
 		EnableAutoCommit:        true,
 		FromBeginning:           false,
 	}

@@ -77,7 +77,7 @@ func (b *Broker) runRetentionCheck() {
 
 			if retentionBytes > -1 {
 				for k := range b.topics[i].partitions[j].segments {
-					if b.topics[i].partitions[j].getSize() < uint32(retentionBytes) {
+					if b.topics[i].partitions[j].getSize() < retentionBytes {
 						break
 					}
 

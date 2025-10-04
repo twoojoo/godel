@@ -69,3 +69,7 @@ type ReqCreateConsumer struct {
 type ReqDeleteTopic struct {
 	Topic string `json:"topic"`
 }
+
+type ReqGetTopic struct {
+	Topic string `json:"name"`
+}

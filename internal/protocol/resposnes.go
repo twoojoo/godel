@@ -56,12 +56,12 @@ type ConsumerGroupOffset struct {
 }
 
 type RespListTopics struct {
-	Topics       []ListTopicsTopic `json:"topics,omitempty"`
-	ErrorCode    int               `json:"errorCode"`
-	ErrorMessage string            `json:"errorMessage,omitempty"`
+	Topics       []Topic `json:"topics,omitempty"`
+	ErrorCode    int     `json:"errorCode"`
+	ErrorMessage string  `json:"errorMessage,omitempty"`
 }
 
-type ListTopicsTopic struct {
+type Topic struct {
 	Name       string               `json:"name"`
 	Partitions []uint32             `json:"partitions,omitempty"`
 	Groups     []string             `json:"consumerGroups,omitempty"`
@@ -112,4 +112,10 @@ type RespDeleteTopic struct {
 
 type RespNotifyRebalance struct {
 	Group string `json:"group"`
+}
+
+type RespGetTopic struct {
+	Topic        Topic  `json:"topic"`
+	ErrorCode    int    `json:"errorCode"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }

@@ -503,7 +503,7 @@ func (b *Broker) processHeartbeatRequest(req *protocol.ReqHeartbeat) *protocol.R
 
 func (b *Broker) processListTopicsReq(req *protocol.ReqListTopics) *protocol.RespListTopics {
 	resp := &protocol.RespListTopics{
-		Topics: []protocol.ListTopicsTopic{},
+		Topics: []protocol.Topic{},
 	}
 
 	topic := b.listTopics()
@@ -525,7 +525,7 @@ func (b *Broker) processListTopicsReq(req *protocol.ReqListTopics) *protocol.Res
 			groups = append(groups, topic[k].consumerGroups[i].name)
 		}
 
-		resp.Topics = append(resp.Topics, protocol.ListTopicsTopic{
+		resp.Topics = append(resp.Topics, protocol.Topic{
 			Name:       topic[k].name,
 			Partitions: partitions,
 			Groups:     groups,

@@ -14,6 +14,7 @@ const (
 	CmdCreateConsumer  int16 = 3
 	CmdDeleteTopic     int16 = 4
 	CmdNotifyRebalabce int16 = 5
+	CmdGetTopic        int16 = 6
 	CmdCommitOffset    int16 = 8
 	CmdHeartbeat       int16 = 12
 	CmdDeleteConsumer  int16 = 13

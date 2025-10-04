@@ -57,6 +57,10 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [ ] Replication
     - [ ] Disaster recovery
 - [ ] Golang client library
+    - [ ] Client
+    - [ ] Topics CRUD
+    - [ ] Produce
+    - [ ] Comsumer 
 - [ ] Fully functional CLI
 - [ ] Node.js client library
 - [ ] Python client library

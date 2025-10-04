@@ -72,6 +72,7 @@ func (c *consumer) start(callback func(m *Message) error) error {
 			}
 
 			err := c.partitions[j].consume(offset, func(message *Message) error {
+				message.partition = c.partitions[j].num
 				messageCh <- message
 				return nil
 			})

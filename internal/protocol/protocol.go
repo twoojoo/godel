@@ -1,9 +1,8 @@
 package protocol
 
 import (
-	"bytes"
 	"encoding/binary"
-	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"io"
 )
@@ -110,23 +109,15 @@ func (r *BaseResponse) Serialize() []byte {
 
 func Serialize(data interface{}) ([]byte, error) {
 	if data == nil {
-
 		return nil, errors.New("nil message")
 	}
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(data)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+
+	return json.Marshal(data)
 }
 
 func Deserialize[T any](b []byte) (*T, error) {
 	var out T
-	buf := bytes.NewBuffer(b)
-	dec := gob.NewDecoder(buf)
-	err := dec.Decode(&out)
+	err := json.Unmarshal(b, &out)
 	if err != nil {
 		return nil, err
 	}

@@ -74,14 +74,14 @@ func (c *consumerGroup) rebalance() {
 }
 
 // MUST lock the consumer group before appending consumer!
-func (c *consumerGroup) apendConsumer(id string, fromBeginning bool, opts *options.ConsumerOptions) (*consumer, error) {
+func (c *consumerGroup) apendConsumer(id string, opts *options.ConsumerOptions) (*consumer, error) {
 	for i := range c.consumers {
 		if c.consumers[i].id == id {
 			return nil, errors.New(errConsumerIdAlreadyExists)
 		}
 	}
 
-	consumer := c.newConsumer(id, []*Partition{}, fromBeginning, opts)
+	consumer := c.newConsumer(id, []*Partition{}, opts)
 	return consumer, nil
 }
 

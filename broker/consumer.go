@@ -10,10 +10,10 @@ import (
 // e done after locking it with the .lock() method.
 // When the operation is done you can call .unlock().
 type consumer struct {
-	id            string
-	group         *consumerGroup
-	partitions    []*Partition
-	fromBeginning bool
+	id         string
+	group      *consumerGroup
+	partitions []*Partition
+	// fromBeginning bool
 	started       bool
 	lastHeartbeat time.Time
 	options       *options.ConsumerOptions
@@ -26,12 +26,12 @@ type consumer struct {
 	hearbeatMu sync.Mutex
 }
 
-func (c *consumerGroup) newConsumer(id string, partitions []*Partition, fromBeginning bool, opts *options.ConsumerOptions) *consumer {
+func (c *consumerGroup) newConsumer(id string, partitions []*Partition, opts *options.ConsumerOptions) *consumer {
 	consumer := &consumer{
-		id:            id,
-		group:         c,
-		partitions:    partitions,
-		fromBeginning: fromBeginning,
+		id:         id,
+		group:      c,
+		partitions: partitions,
+		// fromBeginning: fromBeginning,
 		stopCh:        make(chan struct{}),
 		stoppedCh:     make(chan struct{}),
 		deleteCh:      make(chan struct{}, 1),
@@ -67,7 +67,7 @@ func (c *consumer) start(callback func(m *Message) error) error {
 		go func() {
 			offset := c.group.offsets[c.partitions[i].num] + 1 // consume next message
 
-			if offset == 0 && c.fromBeginning {
+			if offset == 0 && c.options.FromBeginning {
 				offset = c.partitions[j].getBaseOffset()
 			}
 

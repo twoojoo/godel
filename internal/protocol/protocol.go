@@ -12,6 +12,7 @@ const (
 	CmdProduce        int16 = 0
 	CmdConsume        int16 = 1
 	CmdListTopics     int16 = 2
+	CmdCreateConsumer int16 = 3
 	CmdOffsetCommit   int16 = 8
 	CmdHeartbeat      int16 = 12
 	CmdDeleteConsumer int16 = 13

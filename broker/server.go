@@ -226,6 +226,22 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		}
 
 		return buf, nil
+	case protocol.CmdCreateConsumer:
+		req, err := protocol.Deserialize[protocol.ReqCreateConsumer](r.Payload)
+		if err != nil {
+			return nil, errors.New("failed to deserialize request")
+		}
+
+		resp := b.processReqCreateConsumer(req)
+		if resp == nil {
+			return nil, nil
+		}
+		buf, err := protocol.Serialize(resp)
+		if err != nil {
+			return nil, err
+		}
+
+		return buf, nil
 	default:
 		return nil, errors.New("unknonw command " + strconv.Itoa(int(r.Cmd)))
 	}
@@ -301,7 +317,7 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 		}
 	}
 
-	consumer, err := topic.createConsumer(req.Group, req.ID, req.FromBeginning, &req.ConsumerOptions)
+	consumer, err := topic.getConsumer(req.Group, req.ID)
 	if err != nil {
 		return &protocol.RespConsume{
 			ErrorCode:    1,
@@ -491,6 +507,30 @@ func (b *Broker) processListTopicsReq(req *protocol.ReqListTopics) *protocol.Res
 			Groups:     groups,
 			Options:    *topic[k].options,
 		})
+	}
+
+	return resp
+}
+
+func (b *Broker) processReqCreateConsumer(req *protocol.ReqCreateConsumer) *protocol.RespCreateConsumer {
+	resp := &protocol.RespCreateConsumer{
+		ID:    req.ID,
+		Topic: req.Topic,
+		Group: req.Group,
+	}
+
+	topic, err := b.GetTopic(req.Topic)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
+	}
+
+	_, err = topic.createConsumer(req.Group, req.ID, &req.Options)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
 	}
 
 	return resp

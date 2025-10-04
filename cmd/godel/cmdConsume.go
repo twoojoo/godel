@@ -126,6 +126,13 @@ var cmdConsume = &cli.Command{
 			return err
 		}
 
+		_, err = conn.CreateConsumer(topic, group, &opts, consumerID)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("consumer created")
+
 		go func() {
 			for {
 				time.Sleep(time.Duration(opts.HeartbeatIntervalMilli) * time.Millisecond)
@@ -167,7 +174,8 @@ var cmdConsume = &cli.Command{
 						os.Exit(0)
 					}
 
-					latestOffsets[*resp.Messages[i].Partition] = *resp.Messages[i].Offset
+					partition := *resp.Messages[i].Partition
+					latestOffsets[partition] = *resp.Messages[i].Offset
 
 					count++
 

@@ -79,3 +79,27 @@ type RespProduceMessage struct {
 	ErrorCode    int     `json:"errorCode"`
 	ErrorMessage string  `json:"errorMessage,omitempty"`
 }
+
+type RespConsume struct {
+	Messages     []RespConsumeMessage `json:"messages"`
+	ErrorCode    int                  `json:"errorCode"`
+	ErrorMessage string               `json:"errorMessage,omitempty"`
+}
+
+type RespConsumeMessage struct {
+	Key          string  `json:"key"`
+	Group        string  `json:"conumerGroup"`
+	Partition    *uint32 `json:"partition,omitempty"`
+	Offset       *uint64 `json:"offset,omitempty"`
+	Payload      []byte  `json:"payload"`
+	ErrorCode    int     `json:"errorCode"`
+	ErrorMessage string  `json:"errorMessage,omitempty"`
+}
+
+type RespCreateConsumer struct {
+	ID           string `json:"id"`
+	Topic        string `json:"topic"`
+	Group        string `json:"conumerGroup"`
+	ErrorCode    int    `json:"errorCode"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
+}

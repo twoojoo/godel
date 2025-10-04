@@ -284,7 +284,22 @@ func (t *Topic) createConsumerGroups(names []string, offsets []map[uint32]uint64
 	return cgs, nil
 }
 
-func (t *Topic) createConsumer(group, id string, fromBeginning bool, opts *options.ConsumerOptions) (*consumer, error) {
+func (t *Topic) getConsumer(group, id string) (*consumer, error) {
+	cg, ok := t.consumerGroups[group]
+	if !ok {
+		return nil, errors.New(errConsumerGroupNotFound)
+	}
+
+	for i := range cg.consumers {
+		if cg.consumers[i].id == id {
+			return cg.consumers[i], nil
+		}
+	}
+
+	return nil, errors.New(errConsumerNotFound)
+}
+
+func (t *Topic) createConsumer(group, id string, opts *options.ConsumerOptions) (*consumer, error) {
 	if id == "" { // generate new id when group is not specified
 		id = group + uuid.NewString()
 	}
@@ -303,7 +318,7 @@ func (t *Topic) createConsumer(group, id string, fromBeginning bool, opts *optio
 	t.consumerGroups[group].lock()
 	defer t.consumerGroups[group].unlock()
 
-	consumer, err := t.consumerGroups[group].apendConsumer(id, fromBeginning, opts)
+	consumer, err := t.consumerGroups[group].apendConsumer(id, opts)
 	if err != nil {
 		if len(t.consumerGroups[group].consumers) == 0 && isGroupNew {
 			delete(t.consumerGroups, group)

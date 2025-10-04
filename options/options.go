@@ -142,6 +142,7 @@ type ConsumerOptions struct {
 	HeartbeatIntervalMilli  int64 `json:"heartbeat.interval.ms"`
 	EnableAutoCommit        bool  `json:"enable.auto.commit"`
 	AutoCommitIntervalMilli int64 `json:"auto.commit.interval.ms"`
+	FromBeginning           bool  `json:"from.beginning"`
 }
 
 func DefaulcConsumerOption() *ConsumerOptions {
@@ -150,6 +151,7 @@ func DefaulcConsumerOption() *ConsumerOptions {
 		HeartbeatIntervalMilli:  3000,  // 3 secs
 		AutoCommitIntervalMilli: 5000,
 		EnableAutoCommit:        true,
+		FromBeginning:           false,
 	}
 }
 

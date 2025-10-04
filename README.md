@@ -62,4 +62,4 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 ## To do
 
 - [ ] decouple consumer creation and consume action
-- [ ] simplify protocol files
+- [x] simplify protocol files and make them public

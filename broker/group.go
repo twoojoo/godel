@@ -2,20 +2,18 @@ package broker
 
 import (
 	"errors"
+	"godel/internal/protocol"
 	"godel/options"
 	"log/slog"
 	"slices"
 	"sync"
 )
 
-const errConsumerIdAlreadyExists = "consumer.id.already.exists"
-
 type consumerGroup struct {
 	name      string
 	topic     *Topic
 	consumers []*consumer
-
-	offsets map[uint32]uint64
+	offsets   map[uint32]uint64
 
 	mu sync.Mutex
 }
@@ -27,13 +25,6 @@ func (c *consumerGroup) lock() {
 func (c *consumerGroup) unlock() {
 	c.mu.Unlock()
 }
-
-// // starts all consumer group consumers
-// func (c *consumerGroup) start(cb func(m *Message) error) {
-// 	for i := range c.consumers {
-// 		c.consumers[i].start(cb)
-// 	}
-// }
 
 // stops all consumer groups consumers
 func (c *consumerGroup) stop() {
@@ -77,7 +68,7 @@ func (c *consumerGroup) rebalance() {
 func (c *consumerGroup) apendConsumer(id string, opts *options.ConsumerOptions) (*consumer, error) {
 	for i := range c.consumers {
 		if c.consumers[i].id == id {
-			return nil, errors.New(errConsumerIdAlreadyExists)
+			return nil, errors.New(protocol.ErrConsumerIdAlreadyExists)
 		}
 	}
 
@@ -95,7 +86,7 @@ func (c *consumerGroup) removeConsumer(id string) error {
 	}
 
 	if i == -1 {
-		return errors.New(errConsumerNotFound)
+		return errors.New(protocol.ErrConsumerNotFound)
 	}
 	c.consumers[i].stop()
 
@@ -123,5 +114,5 @@ func (g *consumerGroup) heartbeat(consumerID string) error {
 		}
 	}
 
-	return errors.New(errConsumerNotFound)
+	return errors.New(protocol.ErrConsumerNotFound)
 }

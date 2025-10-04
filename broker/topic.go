@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"godel/internal/protocol"
 	"godel/options"
 	"log/slog"
 	"os"
@@ -11,15 +12,6 @@ import (
 
 	"github.com/google/uuid"
 )
-
-const errTopicAlreadyExists = "topic.already.exists"
-const errPartitionsNumMismatch = "num.partition.mismatch"
-const errConsumerGroupNotFound = "consumer.group.not.found"
-const errConsumerNotFound = "consumer.not.found"
-const errConsumerGroupsOffsetsMismatch = "cosumer.groups.offsets.mismatch"
-const errConsumerGroupsPartitionsMismatch = "consumer.groups.partitions.mismatch"
-const errMissingGroupName = "missing.group.name"
-const errMissingConsumerId = "missing.consumer.id"
 
 type Topic struct {
 	name           string
@@ -82,7 +74,7 @@ func newTopic(name string, topicOptions *options.TopicOptions, brokerOptions *op
 	} else if err != nil {
 		return nil, err
 	} else {
-		return nil, errors.New(errTopicAlreadyExists)
+		return nil, errors.New(protocol.ErrTopicAlreadyExists)
 	}
 
 	slog.Info("initializing topic", "topic", name)
@@ -177,13 +169,13 @@ func loadTopic(name string, brokerOptions *options.BrokerOptions, newTopicOption
 	}
 
 	if len(partitionNums) != int(topic.options.NumPartitions) {
-		return nil, errors.New(errPartitionsNumMismatch)
+		return nil, errors.New(protocol.ErrPartitionsNumMismatch)
 	}
 
 	partitions := make([]*Partition, 0, len(partitionNums))
 	for _, num := range partitionNums {
 		partition, err := newPartition(num, name, topic.options, brokerOptions)
-		if err != nil && err.Error() == errPartitionAlreadyExists {
+		if err != nil && err.Error() == protocol.ErrPartitionAlreadyExists {
 			partition, err = loadPartition(num, name, topic.options, brokerOptions)
 			if err != nil {
 				return nil, err
@@ -212,7 +204,7 @@ func loadTopic(name string, brokerOptions *options.BrokerOptions, newTopicOption
 			stateGroupPartitions := getMapKeys(topicState.ConsumerGroups[i].Offsets)
 			consistentGroup := slicesEqualUnordered(partitionNums, stateGroupPartitions)
 			if !consistentGroup && len(topicState.ConsumerGroups[i].Offsets) != 0 {
-				return nil, errors.New(errConsumerGroupsPartitionsMismatch)
+				return nil, errors.New(protocol.ErrConsumerGroupsPartitionsMismatch)
 			}
 
 			groupNames = append(groupNames, topicState.ConsumerGroups[i].Name)
@@ -258,7 +250,7 @@ func (t *Topic) createConsumerGroups(names []string, offsets []map[uint32]uint64
 	cgs := make([]*consumerGroup, len(names))
 
 	if offsets != nil && len(offsets) != len(names) {
-		return nil, errors.New(errConsumerGroupsOffsetsMismatch)
+		return nil, errors.New(protocol.ErrConsumerGroupsOffsetsMismatch)
 	}
 
 	for i := range names {
@@ -288,16 +280,16 @@ func (t *Topic) createConsumerGroups(names []string, offsets []map[uint32]uint64
 
 func (t *Topic) getConsumer(group, id string) (*consumer, error) {
 	if group == "" {
-		return nil, errors.New(errMissingGroupName)
+		return nil, errors.New(protocol.ErrMissingGroupName)
 	}
 
 	if id == "" {
-		return nil, errors.New(errMissingConsumerId)
+		return nil, errors.New(protocol.ErrMissingConsumerId)
 	}
 
 	cg, ok := t.consumerGroups[group]
 	if !ok {
-		return nil, errors.New(errConsumerGroupNotFound)
+		return nil, errors.New(protocol.ErrConsumerGroupNotFound)
 	}
 
 	for i := range cg.consumers {
@@ -306,12 +298,12 @@ func (t *Topic) getConsumer(group, id string) (*consumer, error) {
 		}
 	}
 
-	return nil, errors.New(errConsumerNotFound)
+	return nil, errors.New(protocol.ErrConsumerNotFound)
 }
 
 func (t *Topic) createConsumer(group, id string, opts *options.ConsumerOptions) (*consumer, error) {
 	if group == "" {
-		return nil, errors.New(errMissingGroupName)
+		return nil, errors.New(protocol.ErrMissingGroupName)
 	}
 
 	if id == "" { // generate new id when group is not specified
@@ -362,15 +354,15 @@ func (t *Topic) createConsumer(group, id string, opts *options.ConsumerOptions) 
 
 func (t *Topic) removeConsumer(group string, id string) error {
 	if group == "" {
-		return errors.New(errMissingGroupName)
+		return errors.New(protocol.ErrMissingGroupName)
 	}
 
 	if id == "" {
-		return errors.New(errMissingConsumerId)
+		return errors.New(protocol.ErrMissingConsumerId)
 	}
 
 	if _, ok := t.consumerGroups[group]; !ok {
-		return errors.New(errConsumerGroupNotFound)
+		return errors.New(protocol.ErrConsumerGroupNotFound)
 	}
 
 	t.consumerGroups[group].stop()
@@ -409,11 +401,11 @@ func (t *Topic) listConsumerGroups() map[string]*consumerGroup {
 
 func (t *Topic) commitOffset(group string, partition uint32, offset uint64) error {
 	if group == "" {
-		return errors.New(errMissingGroupName)
+		return errors.New(protocol.ErrMissingGroupName)
 	}
 
 	if _, ok := t.consumerGroups[group]; !ok {
-		return errors.New(errConsumerGroupNotFound)
+		return errors.New(protocol.ErrConsumerGroupNotFound)
 	}
 
 	t.consumerGroups[group].lock()
@@ -437,15 +429,15 @@ func (t *Topic) commitOffset(group string, partition uint32, offset uint64) erro
 
 func (t *Topic) heartbeat(group, id string) error {
 	if group == "" {
-		return errors.New(errMissingGroupName)
+		return errors.New(protocol.ErrMissingGroupName)
 	}
 
 	if id == "" {
-		return errors.New(errMissingConsumerId)
+		return errors.New(protocol.ErrMissingConsumerId)
 	}
 
 	if _, ok := t.consumerGroups[group]; !ok {
-		return errors.New(errConsumerGroupNotFound)
+		return errors.New(protocol.ErrConsumerGroupNotFound)
 	}
 
 	err := t.consumerGroups[group].heartbeat(id)

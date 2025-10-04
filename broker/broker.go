@@ -2,12 +2,11 @@ package broker
 
 import (
 	"errors"
+	"godel/internal/protocol"
 	"godel/options"
 	"log/slog"
 	"os"
 )
-
-const errTopicNotFound = "topic.not.found"
 
 type Broker struct {
 	options *options.BrokerOptions
@@ -100,7 +99,7 @@ func (b *Broker) GetTopic(name string) (*Topic, error) {
 		}
 	}
 
-	return nil, errors.New(errTopicNotFound)
+	return nil, errors.New(protocol.ErrTopicNotFound)
 }
 
 func (b *Broker) GetOrCreateTopic(name string, opts ...*options.TopicOptions) (*Topic, error) {
@@ -109,7 +108,7 @@ func (b *Broker) GetOrCreateTopic(name string, opts ...*options.TopicOptions) (*
 	}
 
 	topic, err := newTopic(name, opts[0], b.options)
-	if err != nil && err.Error() == errTopicAlreadyExists {
+	if err != nil && err.Error() == protocol.ErrTopicAlreadyExists {
 		for i := range b.topics {
 			if b.topics[i].name == name {
 				return loadTopic(name, b.options, opts[0])
@@ -134,7 +133,7 @@ func (b *Broker) Produce(topic string, message *Message) (uint64, uint32, error)
 		}
 	}
 
-	return 0, 0, errors.New(errTopicNotFound)
+	return 0, 0, errors.New(protocol.ErrTopicNotFound)
 }
 
 func (b *Broker) Run(port int) error {

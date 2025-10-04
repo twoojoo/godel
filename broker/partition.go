@@ -3,14 +3,13 @@ package broker
 import (
 	"errors"
 	"fmt"
+	"godel/internal/protocol"
 	"godel/options"
 	"io"
 	"log/slog"
 	"os"
 	"slices"
 )
-
-const errPartitionAlreadyExists = "partition.already.exists"
 
 type Partition struct {
 	newMessageCh  chan struct{}
@@ -32,7 +31,7 @@ func newPartition(id uint32, topicName string, topicOptions *options.TopicOption
 	} else if err != nil {
 		return nil, err
 	} else {
-		return nil, errors.New(errPartitionAlreadyExists)
+		return nil, errors.New(protocol.ErrPartitionAlreadyExists)
 	}
 
 	slog.Info("initializing partition", "topic", topicName, "partition", id)

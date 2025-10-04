@@ -326,7 +326,6 @@ func (b *Broker) processProduceReq(req *protocol.ReqProduce) ([]byte, error) {
 
 func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responder func(resp *protocol.BaseResponse)) *protocol.RespConsume {
 	topic, err := b.GetTopic(req.Topic)
-	defer b.RUnlock()
 	if err != nil {
 		return &protocol.RespConsume{
 			ErrorCode:    1,
@@ -341,6 +340,8 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 			ErrorMessage: err.Error(),
 		}
 	}
+
+	b.RUnlock()
 
 	onMessage := func(message *Message) error {
 		r := protocol.RespConsume{
@@ -550,12 +551,14 @@ func (b *Broker) processReqCreateConsumer(req *protocol.ReqCreateConsumer) *prot
 		return resp
 	}
 
-	_, err = topic.createConsumer(req.Group, req.ID, &req.Options)
+	consumer, err := topic.createConsumer(req.Group, req.ID, &req.Options)
 	if err != nil {
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()
 		return resp
 	}
+
+	resp.ID = consumer.id
 
 	return resp
 }

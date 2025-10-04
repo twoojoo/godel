@@ -35,6 +35,15 @@ var cmdConsume = &cli.Command{
 			Name: "group",
 		},
 	},
+	// 	func DefaulcConsumerOption() *ConsumerOptions {
+	// 	return &ConsumerOptions{
+	// 		SessionTimeoutMilli:     10000, // 10 secs
+	// 		HeartbeatIntervalMilli:  3000,  // 3 secs
+	// 		AutoCommitIntervalMilli: 5000,
+	// 		EnableAutoCommit:        true,
+	// 		FromBeginning:           false,
+	// 	}
+	// }
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "consumer",
@@ -42,26 +51,33 @@ var cmdConsume = &cli.Command{
 			Usage:   "provide a consumer id to consume with (if not specified creates a new consumer in the consuer group)",
 		},
 		&cli.BoolFlag{
-			Name: "from.beginning",
+			Name:  "from.beginning",
+			Value: false,
 		},
 		&cli.BoolFlag{
-			Name: "json",
+			Name:  "json",
+			Value: false,
 		},
 		&cli.Int32Flag{
 			Name:    "number",
 			Aliases: []string{"n"},
+			Value:   0,
 		},
 		&cli.Int64Flag{
-			Name: "heartbeat.interval.ms",
+			Name:  "heartbeat.interval.ms",
+			Value: 3000,
 		},
 		&cli.Int64Flag{
-			Name: "session.timeout.ms",
+			Name:  "session.timeout.ms",
+			Value: 10000,
 		},
 		&cli.BoolFlag{
-			Name: "enable.auto.commit",
+			Name:  "enable.auto.commit",
+			Value: false,
 		},
 		&cli.Int64Flag{
-			Name: "auto.commit.interval.ms",
+			Name:  "auto.commit.interval.ms",
+			Value: 5000,
 		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) (err error) {

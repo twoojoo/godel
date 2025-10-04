@@ -3,6 +3,7 @@ package broker
 import (
 	"godel/internal/protocol"
 	"godel/options"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -64,6 +65,7 @@ func (c *consumer) setResponder(corrID int32, responder func(*protocol.BaseRespo
 	c.responder = nil
 }
 
+// MUST be called when the consumer is running
 func (c *consumer) respond(msg *protocol.BaseResponse) bool {
 	if c.responder != nil || c.correlationID == nil {
 		c.responder(msg)
@@ -73,6 +75,7 @@ func (c *consumer) respond(msg *protocol.BaseResponse) bool {
 	return false
 }
 
+// MUST be called when the consumer is running (just before stop)
 func (c *consumer) sendRebalanceNotif() bool {
 	if c.correlationID == nil {
 		return false
@@ -162,6 +165,7 @@ func (c *consumer) heartbeat() {
 	c.hearbeatMu.Lock()
 	defer c.hearbeatMu.Unlock()
 
+	slog.Debug("received heartbeat from consumer", "consumer", c.id)
 	c.lastHeartbeat = time.Now()
 }
 

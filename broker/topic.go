@@ -310,9 +310,7 @@ func (t *Topic) createConsumer(group, id string, opts *options.ConsumerOptions) 
 	}
 
 	isGroupNew := false
-	if cg, ok := t.consumerGroups[group]; ok {
-		cg.stop()
-	} else {
+	if _, ok := t.consumerGroups[group]; !ok {
 		isGroupNew = true
 		_, err := t.createConsumerGroups([]string{group}, nil)
 		if err != nil {
@@ -345,6 +343,9 @@ func (t *Topic) createConsumer(group, id string, opts *options.ConsumerOptions) 
 		"consumer", consumer.id,
 	)
 
+	// should show a DEBUG log because the new consumer is not listening yet,
+	// however for now rebalancing is fast so the new consumer doesn't need a notif.
+	t.consumerGroups[group].sendRebalanceNotifs()
 	t.consumerGroups[group].rebalance()
 
 	slog.Info("rebalancing done", "group", group)
@@ -364,6 +365,10 @@ func (t *Topic) removeConsumer(group string, id string) error {
 		return errors.New(protocol.ErrConsumerGroupNotFound)
 	}
 
+	// sending rebalance notif to all consumers excluding the removed one
+	// (should send a removal notif to the removed consumer?)
+	excluding := []string{id}
+	t.consumerGroups[group].sendRebalanceNotifs(excluding...)
 	t.consumerGroups[group].stop()
 
 	t.consumerGroups[group].lock()

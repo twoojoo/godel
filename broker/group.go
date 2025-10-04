@@ -33,6 +33,20 @@ func (c *consumerGroup) stop() {
 	}
 }
 
+// consumers and consumer group MUST not be stopped
+func (c *consumerGroup) sendRebalanceNotifs(excluding ...string) {
+	for i := range c.consumers {
+		if slices.Contains(excluding, c.consumers[i].id) {
+			continue
+		}
+
+		sent := c.consumers[i].sendRebalanceNotif()
+		if !sent {
+			slog.Debug("failed to send rebalancing notification to consumer", "consumer", c.consumers[i].id)
+		}
+	}
+}
+
 // reassign partitions
 //
 // MUST call the .lock() and .unlock() methods!
@@ -115,7 +129,6 @@ func (g *consumerGroup) heartbeat(consumerID string) error {
 			return nil
 		}
 	}
-
 	return errors.New(protocol.ErrConsumerNotFound)
 }
 

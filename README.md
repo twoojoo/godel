@@ -24,7 +24,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [x] Run server
     - [ ] Edit server
     - [x] Create topics
-    - [ ] List topics
+    - [x] List topics
     - [ ] Delete topics
     - [ ] Edit topics
     - [x] Produce
@@ -33,6 +33,8 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
     - [x] List consumer groups
     - [ ] Create consumer group
     - [ ] Delete consumer group
+    - [ ] Create consumer
+    - [x] Delete consumer
 - [x] Consumer groups
 - [x] Consumer rebalancing
 - [x] Consumer heartbeats
@@ -56,3 +58,8 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [ ] Python client library
 - [x] Dockerfile (basic)
 - [ ] Kubernetes manifests
+
+## To do
+
+- [ ] decouple consumer creation and consume action
+- [ ] simplify protocol files

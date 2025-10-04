@@ -178,7 +178,7 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		}
 
 		return buf, nil
-	case protocol.CmdOffsetCommit:
+	case protocol.CmdCommitOffset:
 		req, err := protocol.Deserialize[protocol.ReqCommitOffset](r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
@@ -233,6 +233,22 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		}
 
 		resp := b.processReqCreateConsumer(req)
+		if resp == nil {
+			return nil, nil
+		}
+		buf, err := protocol.Serialize(resp)
+		if err != nil {
+			return nil, err
+		}
+
+		return buf, nil
+	case protocol.CmdDeleteTopic:
+		req, err := protocol.Deserialize[protocol.ReqDeleteTopic](r.Payload)
+		if err != nil {
+			return nil, errors.New("failed to deserialize request")
+		}
+
+		resp := b.processDeleteTopicReq(req)
 		if resp == nil {
 			return nil, nil
 		}
@@ -534,6 +550,21 @@ func (b *Broker) processReqCreateConsumer(req *protocol.ReqCreateConsumer) *prot
 	}
 
 	_, err = topic.createConsumer(req.Group, req.ID, &req.Options)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
+	}
+
+	return resp
+}
+
+func (b *Broker) processDeleteTopicReq(req *protocol.ReqDeleteTopic) *protocol.RespDeleteTopic {
+	resp := &protocol.RespDeleteTopic{
+		Topic: req.Topic,
+	}
+
+	err := b.deleteTopic(req.Topic)
 	if err != nil {
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()

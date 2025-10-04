@@ -65,3 +65,7 @@ type ReqCreateConsumer struct {
 	Group   string                  `json:"conumerGroup"`
 	Options options.ConsumerOptions `json:"config"`
 }
+
+type ReqDeleteTopic struct {
+	Topic string `json:"topic"`
+}

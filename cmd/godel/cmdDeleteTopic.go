@@ -10,31 +10,18 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var cmdDeleteConsumer = &cli.Command{
+var cmdDeleteTopic = &cli.Command{
 	Name:    "remove",
 	Aliases: []string{"rm", "delete", "del"},
 	Arguments: []cli.Argument{
 		&cli.StringArg{
 			Name: "topic",
 		},
-		&cli.StringArg{
-			Name: "id",
-		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) (err error) {
 		topic := cmd.StringArg("topic")
 		if topic == "" {
-			return errors.New("topic must be provided")
-		}
-
-		id := cmd.StringArg("id")
-		if topic == "" {
-			return errors.New("id must be provided")
-		}
-
-		group, err := getGroupFromConsumerID(id)
-		if err != nil {
-			return err
+			return errors.New("topic is required")
 		}
 
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
@@ -46,7 +33,7 @@ var cmdDeleteConsumer = &cli.Command{
 			return err
 		}
 
-		resp, err := conn.DeleteConsumer(topic, group, id)
+		resp, err := conn.DeleteTopic(topic)
 		if err != nil {
 			return err
 		}
@@ -57,6 +44,7 @@ var cmdDeleteConsumer = &cli.Command{
 		}
 
 		fmt.Println(string(bytes))
+
 		return nil
 	},
 }

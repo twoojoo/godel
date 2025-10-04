@@ -103,3 +103,9 @@ type RespCreateConsumer struct {
 	ErrorCode    int    `json:"errorCode"`
 	ErrorMessage string `json:"errorMessage,omitempty"`
 }
+
+type RespDeleteTopic struct {
+	Topic        string `json:"topic"`
+	ErrorCode    int    `json:"errorCode"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
+}

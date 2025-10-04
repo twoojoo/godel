@@ -1,21 +1,17 @@
 package client
 
 import (
-	"fmt"
 	"godel/internal/protocol"
 )
 
-func (c *Connection) CommitOffset(topic, group string, partition uint32, offset uint64) (*protocol.RespCommitOffset, error) {
+func (c *Connection) DeleteTopic(topic string) (*protocol.RespDeleteTopic, error) {
 	corrID, err := GenerateCorrelationID()
 	if err != nil {
 		return nil, err
 	}
 
-	req := protocol.ReqCommitOffset{
-		Topic:     topic,
-		Group:     group,
-		Partition: partition,
-		Offset:    offset,
+	req := protocol.ReqDeleteConsumer{
+		Topic: topic,
 	}
 
 	reqBuf, err := protocol.Serialize(req)
@@ -24,7 +20,7 @@ func (c *Connection) CommitOffset(topic, group string, partition uint32, offset 
 	}
 
 	msg := &protocol.BaseRequest{
-		Cmd:           protocol.CmdCommitOffset,
+		Cmd:           protocol.CmdDeleteTopic,
 		ApiVersion:    0,
 		CorrelationID: corrID,
 		Payload:       reqBuf,
@@ -32,16 +28,12 @@ func (c *Connection) CommitOffset(topic, group string, partition uint32, offset 
 
 	err = c.SendMessage(msg)
 	if err != nil {
-		fmt.Println(err)
+		return nil, err
 	}
 
-	ch := make(chan *protocol.RespCommitOffset, 1)
+	ch := make(chan *protocol.RespDeleteTopic, 1)
 	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
-		// if msg.CorrelationID != r.CorrelationID {
-		// 	return nil
-		// }
-
-		resp, err := protocol.Deserialize[protocol.RespCommitOffset](r.Payload)
+		resp, err := protocol.Deserialize[protocol.RespDeleteTopic](r.Payload)
 		if err != nil {
 			return err
 		}

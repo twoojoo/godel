@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/urfave/cli/v3"
 )
 
@@ -37,8 +36,13 @@ var cmdConsume = &cli.Command{
 		},
 	},
 	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "consumer",
+			Aliases: []string{"c"},
+			Usage:   "provide a consumer id to consume with (if not specified creates a new consumer in the consuer group)",
+		},
 		&cli.BoolFlag{
-			Name: "fromBeginning",
+			Name: "from.beginning",
 		},
 		&cli.BoolFlag{
 			Name: "json",
@@ -71,9 +75,8 @@ var cmdConsume = &cli.Command{
 			return errors.New("group must be provided")
 		}
 
+		consumerID := cmd.String("consumer")
 		maxMessages := cmd.Int32("number")
-
-		consumerID := group + uuid.NewString()
 
 		corrID, err := client.GenerateCorrelationID()
 		if err != nil {
@@ -102,13 +105,15 @@ var cmdConsume = &cli.Command{
 				os.Exit(0)
 			}()
 
-			fmt.Println("disconnecting consumer...")
-			resp, err := conn.DeleteConsumer(topic, group, consumerID)
-			if err != nil {
-				fmt.Println("error deleting consumer", err)
-			}
-			if resp.ErrorCode != 0 {
-				fmt.Println("Unxexpected Error:", resp.ErrorMessage)
+			if consumerID != "" {
+				fmt.Println("disconnecting consumer...")
+				resp, err := conn.DeleteConsumer(topic, group, consumerID)
+				if err != nil {
+					fmt.Println("error deleting consumer", err)
+				}
+				if resp.ErrorCode != 0 {
+					fmt.Println("Unxexpected Error:", resp.ErrorMessage)
+				}
 			}
 
 			alreadyClosed = true
@@ -126,12 +131,13 @@ var cmdConsume = &cli.Command{
 			return err
 		}
 
-		_, err = conn.CreateConsumer(topic, group, &opts, consumerID)
-		if err != nil {
-			return err
+		if consumerID == "" {
+			consumerResp, err := conn.CreateConsumer(topic, group, &opts)
+			if err != nil {
+				return err
+			}
+			consumerID = consumerResp.ID
 		}
-
-		fmt.Println("consumer created")
 
 		go func() {
 			for {

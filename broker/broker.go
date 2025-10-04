@@ -6,11 +6,14 @@ import (
 	"godel/options"
 	"log/slog"
 	"os"
+	"sync"
 )
 
 type Broker struct {
 	options *options.BrokerOptions
 	topics  []*Topic
+
+	mu sync.RWMutex
 }
 
 func NewBroker(opts ...*options.BrokerOptions) (*Broker, error) {
@@ -60,6 +63,9 @@ func NewBroker(opts ...*options.BrokerOptions) (*Broker, error) {
 // loadTopics scans broker path for topics folders and
 // recursively loads eache topic from its own path.
 func (b *Broker) loadTopics() ([]*Topic, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	topicNames, err := listSubfolders(b.options.BasePath)
 	if err != nil {
 		return nil, err
@@ -79,6 +85,9 @@ func (b *Broker) loadTopics() ([]*Topic, error) {
 }
 
 func (b *Broker) CreateTopic(name string, opts ...*options.TopicOptions) (*Topic, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	if len(opts) == 0 {
 		opts = append(opts, options.DefaultTopicOptions())
 	}
@@ -93,6 +102,8 @@ func (b *Broker) CreateTopic(name string, opts ...*options.TopicOptions) (*Topic
 }
 
 func (b *Broker) GetTopic(name string) (*Topic, error) {
+	b.mu.RLock()
+
 	for i := range b.topics {
 		if b.topics[i].name == name {
 			return b.topics[i], nil
@@ -103,6 +114,9 @@ func (b *Broker) GetTopic(name string) (*Topic, error) {
 }
 
 func (b *Broker) GetOrCreateTopic(name string, opts ...*options.TopicOptions) (*Topic, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	if len(opts) == 0 {
 		opts = append(opts, options.DefaultTopicOptions())
 	}
@@ -127,6 +141,7 @@ func (b *Broker) GetOrCreateTopic(name string, opts ...*options.TopicOptions) (*
 }
 
 func (b *Broker) Produce(topic string, message *Message) (uint64, uint32, error) {
+	b.mu.RLock()
 	for i := range b.topics {
 		if b.topics[i].name == topic {
 			return b.topics[i].produce(message)
@@ -144,6 +159,33 @@ func (b *Broker) Run(port int) error {
 	return err
 }
 
+func (b *Broker) RUnlock() {
+	b.mu.RUnlock()
+}
+
 func (b *Broker) listTopics() []*Topic {
+	b.mu.RLock()
 	return b.topics
+}
+
+func (b *Broker) deleteTopic(topic string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	i := -1
+	for j := range b.topics {
+		if b.topics[j].name == topic {
+			b.topics[j].delete()
+			i = j
+			break
+		}
+	}
+
+	if i == -1 {
+		return errors.New(protocol.ErrTopicNotFound)
+	}
+
+	b.topics = append(b.topics[:i], b.topics[i+1:]...)
+	slog.Info("topic fully deleted", "topic", topic)
+	return nil
 }

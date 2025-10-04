@@ -40,6 +40,7 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [x] Consumer heartbeats
 - [x] Autocommit
 - [x] Consumer groups persistence
+- [ ] Rebalancing notif to consumers
 - [ ] Full concurrency support (mutexes)
 - [ ] Empty key partition rotation (round robin)
 - [ ] Write Ahead Log

@@ -116,3 +116,23 @@ func (g *consumerGroup) heartbeat(consumerID string) error {
 
 	return errors.New(protocol.ErrConsumerNotFound)
 }
+
+func (c *consumerGroup) delete() {
+	slog.Info("stopping all consumers", "group", c.name)
+
+	// stop all consumers before anything else
+	for i := range c.consumers {
+		c.consumers[i].stop()
+	}
+
+	slog.Info("removing all consumers", "group", c.name)
+	for i := range c.consumers {
+		// make sure its not started again,
+		// but should'nt be necessary
+		c.consumers[i].lock()
+		defer c.consumers[i].unlock()
+
+		c.consumers[i].close()
+		c.consumers = slices.Delete(c.consumers, i, i+1)
+	}
+}

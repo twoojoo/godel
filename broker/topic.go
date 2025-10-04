@@ -333,7 +333,7 @@ func (t *Topic) createConsumer(group, id string, opts *options.ConsumerOptions) 
 	}
 
 	consumer.startHearbeatChecks(func(id string) {
-		slog.Error("consumer expired, removing", "group", group, "consumer", id)
+		slog.Info("consumer expired, removing", "group", group, "consumer", id)
 		err := t.removeConsumer(group, id)
 		if err != nil {
 			slog.Error("failed to remove consumer after heartbeat check", "group", group, "consumer", id, "error", err)
@@ -486,6 +486,33 @@ func (t *Topic) persistState() error {
 	err = os.WriteFile(statePath, stateBytes, 0644)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (t *Topic) delete() error {
+	slog.Info("deleting topic", "topic", t.name)
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	for name := range t.consumerGroups {
+		t.consumerGroups[name].lock()
+		t.consumerGroups[name].stop()
+		t.consumerGroups[name].delete()
+		t.consumerGroups[name].unlock()
+		delete(t.consumerGroups, name)
+	}
+
+	slog.Info("all consumer groups detached", "topic", t.name)
+
+	// remove all files
+	// options, state and all partitions files
+	topicPath := fmt.Sprintf("%s/%s", t.brokerOptions.BasePath, t.name)
+	err := os.RemoveAll(topicPath)
+	if err != nil {
+		slog.Error("error while deleting topic files", "topic", t.name)
 	}
 
 	return nil

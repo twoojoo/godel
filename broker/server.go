@@ -310,6 +310,7 @@ func (b *Broker) processProduceReq(req *protocol.ReqProduce) ([]byte, error) {
 
 func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responder func(resp *protocol.BaseResponse)) *protocol.RespConsume {
 	topic, err := b.GetTopic(req.Topic)
+	defer b.RUnlock()
 	if err != nil {
 		return &protocol.RespConsume{
 			ErrorCode:    1,
@@ -370,6 +371,7 @@ func (b *Broker) processDeleteConsumerReq(req *protocol.ReqDeleteConsumer) *prot
 	}
 
 	topic, err := b.GetTopic(req.Topic)
+	defer b.RUnlock()
 	if err != nil {
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()
@@ -392,6 +394,7 @@ func (b *Broker) processListConsumerGroupsReq(req *protocol.ReqListConsumerGroup
 	}
 
 	topic, err := b.GetTopic(req.Topic)
+	defer b.RUnlock()
 	if err != nil {
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()
@@ -440,6 +443,7 @@ func (b *Broker) processCommitOffsetRequest(req *protocol.ReqCommitOffset) *prot
 	}
 
 	topic, err := b.GetTopic(req.Topic)
+	defer b.RUnlock()
 	if err != nil {
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()
@@ -462,6 +466,7 @@ func (b *Broker) processHeartbeatRequest(req *protocol.ReqHeartbeat) *protocol.R
 	}
 
 	topic, err := b.GetTopic(req.Topic)
+	defer b.RUnlock()
 	if err != nil {
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()
@@ -484,6 +489,7 @@ func (b *Broker) processListTopicsReq(req *protocol.ReqListTopics) *protocol.Res
 	}
 
 	topic := b.listTopics()
+	defer b.RUnlock()
 
 	for k := range topic {
 		if req.NameFilter != "" && !strings.Contains(topic[k].name, req.NameFilter) {
@@ -520,6 +526,7 @@ func (b *Broker) processReqCreateConsumer(req *protocol.ReqCreateConsumer) *prot
 	}
 
 	topic, err := b.GetTopic(req.Topic)
+	defer b.RUnlock()
 	if err != nil {
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()

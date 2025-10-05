@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"errors"
 	"godel/internal/protocol"
 	"godel/options"
 	"log/slog"
@@ -61,8 +62,8 @@ func (c *consumer) clearResponder() {
 }
 
 func (c *consumer) setResponder(corrID int32, responder func(*protocol.BaseResponse)) {
-	c.correlationID = nil
-	c.responder = nil
+	c.correlationID = &corrID
+	c.responder = responder
 }
 
 // MUST be called when the consumer is running
@@ -89,6 +90,7 @@ func (c *consumer) sendRebalanceNotif() bool {
 	// should check error
 
 	msg := protocol.BaseResponse{
+		Cmd:           protocol.CmdNotifyRebalabce,
 		CorrelationID: *c.correlationID,
 		Payload:       buf,
 	}
@@ -107,6 +109,7 @@ func (c *consumer) start(correlationID int32, callback func(m *Message) error, r
 	defer c.clearResponder()
 
 	c.started = true
+
 	messageCh := make(chan *Message)
 	errorCh := make(chan error)
 
@@ -120,6 +123,15 @@ func (c *consumer) start(correlationID int32, callback func(m *Message) error, r
 			}
 
 			err := c.partitions[j].consume(offset, func(message *Message) error {
+				if message == nil {
+					slog.Error("nil message while consuming", "consumer", c.id)
+				}
+				slog.Debug("consumed message", "offset", message.Offset())
+
+				if len(c.partitions)-1 < j || c.partitions[j] == nil {
+					return errors.New("missing partition while consuming")
+				}
+
 				message.partition = c.partitions[j].num
 				messageCh <- message
 				return nil
@@ -134,13 +146,17 @@ func (c *consumer) start(correlationID int32, callback func(m *Message) error, r
 	for {
 		select {
 		case msg := <-messageCh:
+			slog.Debug("executing callback for", "offset", msg.Offset())
 			err := callback(msg)
+			slog.Debug("executed callback for", "offset", msg.Offset())
+			slog.Debug("received error stopping consumer")
 			if err != nil {
 				return err
 			}
 		case err := <-errorCh:
 			return err
 		case <-c.stopCh:
+			slog.Debug("consumer stopped", "consumer", c.id)
 			c.stoppedCh <- struct{}{}
 			return nil
 		}

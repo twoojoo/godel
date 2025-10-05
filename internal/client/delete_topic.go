@@ -32,7 +32,7 @@ func (c *Connection) DeleteTopic(topic string) (*protocol.RespDeleteTopic, error
 	}
 
 	ch := make(chan *protocol.RespDeleteTopic, 1)
-	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
+	err = c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) error {
 		resp, err := protocol.Deserialize[protocol.RespDeleteTopic](r.Payload)
 		if err != nil {
 			return err

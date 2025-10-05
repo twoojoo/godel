@@ -125,10 +125,10 @@ var cmdConsume = &cli.Command{
 				fmt.Println("disconnecting consumer...")
 				resp, err := conn.DeleteConsumer(topic, group, consumerID)
 				if err != nil {
-					fmt.Println("error deleting consumer", err)
+					fmt.Fprintf(os.Stderr, "delete consumer error: %s\n", err.Error())
 				}
 				if resp.ErrorCode != 0 {
-					fmt.Println("Unxexpected Error:", resp.ErrorMessage)
+					fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err.Error())
 				}
 			}
 
@@ -138,7 +138,7 @@ var cmdConsume = &cli.Command{
 
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
 			if err != client.ErrCloseConnection {
-				println("error", err)
+				fmt.Fprintf(os.Stderr, "connection error: %s\n", err.Error())
 				close(c)
 				return
 			}
@@ -155,36 +155,38 @@ var cmdConsume = &cli.Command{
 			consumerID = consumerResp.ID
 		}
 
-		go func() {
-			for {
-				time.Sleep(time.Duration(opts.HeartbeatIntervalMilli) * time.Millisecond)
-				_, err := conn.Heartbeat(topic, group, consumerID)
-				if err != nil {
-					println("heartbeat error", err)
-				}
-			}
-		}()
+		// go func() {
+		// 	for {
+		// 		time.Sleep(time.Duration(opts.HeartbeatIntervalMilli) * time.Millisecond)
+		// 		_, err := conn.Heartbeat(topic, group, consumerID)
+		// 		if err != nil {
+		// 			fmt.Fprintf(os.Stderr, "heartbeat error: %s\n", err.Error())
+		// 			continue
+		// 		}
+		// 		fmt.Fprintf(os.Stderr, "sent heartbeat")
+		// 	}
+		// }()
 
 		var latestOffsets = map[uint32]uint64{}
 
-		if opts.EnableAutoCommit {
-			go func() {
-				for {
-					time.Sleep(time.Duration(opts.AutoCommitIntervalMilli) * time.Millisecond)
+		// if opts.EnableAutoCommit {
+		// 	go func() {
+		// 		for {
+		// 			time.Sleep(time.Duration(opts.AutoCommitIntervalMilli) * time.Millisecond)
 
-					for partition, offset := range latestOffsets {
-						_, err := conn.CommitOffset(topic, group, partition, offset)
-						if err != nil {
-							println("heartbeat error", err)
-						}
-					}
-				}
-			}()
-		}
+		// 			for partition, offset := range latestOffsets {
+		// 				_, err := conn.CommitOffset(topic, group, partition, offset)
+		// 				if err != nil {
+		// 					fmt.Fprintf(os.Stderr, "commit error: %s\n", err.Error())
+		// 				}
+		// 			}
+		// 		}
+		// 	}()
+		// }
 
 		go func() {
 			count := 0
-			conn.ReadMessage(corrID, func(r *protocol.BaseResponse) error {
+			err := conn.AppendListener(corrID, func(r *protocol.BaseResponse) error {
 				resp, err := protocol.Deserialize[protocol.RespConsume](r.Payload)
 				if err != nil {
 					return err
@@ -231,6 +233,9 @@ var cmdConsume = &cli.Command{
 
 				return nil
 			})
+			if err != nil {
+				fmt.Println("append listened err", err)
+			}
 		}()
 
 		req := protocol.ReqConsume{
@@ -259,7 +264,7 @@ var cmdConsume = &cli.Command{
 
 		err = conn.SendMessage(msg)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("error", err)
 		}
 
 		select {}

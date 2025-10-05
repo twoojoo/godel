@@ -36,7 +36,7 @@ func (c *Connection) CommitOffset(topic, group string, partition uint32, offset 
 	}
 
 	ch := make(chan *protocol.RespCommitOffset, 1)
-	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
+	err = c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) error {
 		// if msg.CorrelationID != r.CorrelationID {
 		// 	return nil
 		// }

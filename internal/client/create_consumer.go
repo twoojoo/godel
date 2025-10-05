@@ -43,7 +43,7 @@ func (c *Connection) CreateConsumer(topic, group string, opts *options.ConsumerO
 	}
 
 	ch := make(chan *protocol.RespCreateConsumer, 1)
-	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
+	err = c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) error {
 		resp, err := protocol.Deserialize[protocol.RespCreateConsumer](r.Payload)
 		if err != nil {
 			return err

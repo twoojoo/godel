@@ -66,7 +66,7 @@ var cmdProduce = &cli.Command{
 
 		if cmd.Bool("showResponse") {
 			go func() {
-				err := conn.ReadMessage(corrID, func(r *protocol.BaseResponse) error {
+				err := conn.AppendListener(corrID, func(r *protocol.BaseResponse) error {
 					fmt.Println(string(r.Payload))
 
 					_, err := protocol.Deserialize[protocol.RespProduce](r.Payload)

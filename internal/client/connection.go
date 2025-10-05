@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"errors"
 	"godel/internal/protocol"
+	"io"
 	"net"
-	"sync"
 )
 
 var ErrCloseConnection = errors.New("close.connection")
@@ -24,8 +24,6 @@ type Connection struct {
 
 	closeCh  chan struct{}
 	requests chan *protocol.BaseRequest
-
-	mu sync.Mutex
 }
 
 func ConnectToBroker(addr string, onError func(*Connection, error)) (*Connection, error) {
@@ -56,35 +54,61 @@ func ConnectToBroker(addr string, onError func(*Connection, error)) (*Connection
 
 func (c *Connection) startListening() {
 	go func() {
+		defer c.Close() // ensure cleanup
 		for {
 			msg, err := protocol.DeserializeResponse(c.reader)
 			if err != nil {
+				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+					// normal disconnect
+					return
+				}
 				c.onError(c, err)
 				return
 			}
 
-			// fmt.Println("received response", msg.CorrelationID)
-
-			// c.mu.Lock()
-			// defer c.mu.Unlock()
-
 			for i := range c.listeners {
 				if c.listeners[i].correlationID == msg.CorrelationID {
 					err = c.listeners[i].callback(msg)
-					if err != nil && c != nil {
+					if err != nil {
+						if err == ErrCloseConnection {
+							c.onError(c, err)
+							return
+						}
 						c.onError(c, err)
-						continue
-					}
-
-					if err == ErrCloseConnection {
-						c.Close()
-						return
 					}
 				}
 			}
 		}
 	}()
 }
+
+// func (c *Connection) startListening() {
+// 	go func() {
+// 		for {
+// 			msg, err := protocol.DeserializeResponse(c.reader)
+// 			if err != nil {
+// 				c.onError(c, err)
+// 				return
+// 			}
+
+// 			for i := range c.listeners {
+// 				if c.listeners[i].correlationID == msg.CorrelationID {
+// 					err = c.listeners[i].callback(msg)
+// 					if err != nil && c != nil {
+// 						c.onError(c, err)
+// 						continue
+// 					}
+
+// 					if err == ErrCloseConnection {
+// 						c.onError(c, err)
+// 						c.Close()
+// 						return
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}()
+// }
 
 func (c *Connection) startSending() {
 	go func() {
@@ -93,7 +117,6 @@ func (c *Connection) startSending() {
 			case <-c.closeCh:
 				return
 			case m := <-c.requests:
-				// fmt.Println("sending request", m.Cmd, m.CorrelationID)
 				ser := m.Serialize()
 
 				_, err := c.writer.Write(ser)
@@ -117,7 +140,7 @@ func (c *Connection) SendMessage(m *protocol.BaseRequest) error {
 	return nil
 }
 
-func (c *Connection) ReadMessage(corrID int32, cb func(r *protocol.BaseResponse) error) error {
+func (c *Connection) AppendListener(corrID int32, cb func(r *protocol.BaseResponse) error) error {
 	c.listeners = append(c.listeners, listener{
 		correlationID: corrID,
 		callback:      cb,

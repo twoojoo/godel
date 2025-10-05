@@ -167,6 +167,7 @@ func (p *Partition) consume(offset uint64, callback func(message *Message) error
 		// if there are no segment, or the requested offset is after the last segment.
 		// then wait for a new message before continuing
 		if len(p.segments) == 0 || segmentIdx >= len(p.segments) {
+			slog.Debug("waiting for new messages")
 			<-p.newMessageCh
 			continue
 		}
@@ -180,6 +181,7 @@ func (p *Partition) consume(offset uint64, callback func(message *Message) error
 			// last message segment reached and segment capped
 			// increment segmentindex and continue looping
 			if err == io.EOF && p.segments[segmentIdx].capped {
+				slog.Debug("segment ended")
 				segmentIdx++
 				continue
 			}
@@ -187,6 +189,7 @@ func (p *Partition) consume(offset uint64, callback func(message *Message) error
 			// last message segment reached and segment not capped
 			// (just wait for a new message)
 			if err == io.EOF && !p.segments[segmentIdx].capped {
+				slog.Debug("last segment message, waiting for new")
 				<-p.newMessageCh
 				continue
 			}
@@ -206,6 +209,7 @@ func (p *Partition) consume(offset uint64, callback func(message *Message) error
 			// can increment consumer offset
 			offset++
 		} else {
+			slog.Debug("waiting for new messages 1")
 			<-p.newMessageCh
 		}
 	}

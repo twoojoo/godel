@@ -81,6 +81,7 @@ type RespProduceMessage struct {
 }
 
 type RespConsume struct {
+	Stop         bool                 `json:"stop"`
 	Messages     []RespConsumeMessage `json:"messages"`
 	ErrorCode    int                  `json:"errorCode"`
 	ErrorMessage string               `json:"errorMessage,omitempty"`

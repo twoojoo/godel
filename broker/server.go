@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+type writeResult struct {
+	Error         error
+	CorrelationID int32
+}
+
 func (b *Broker) runServer(port int) error {
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
@@ -43,7 +48,8 @@ func (b *Broker) handleConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 
-	responses := make(chan *protocol.BaseResponse, 100)
+	responsesCh := make(chan *protocol.BaseResponse, 100)
+	resultsCh := make(chan *writeResult) // used to stop consumer on write error
 
 	for {
 		req, err := protocol.DeserializeRequest(reader)
@@ -59,10 +65,18 @@ func (b *Broker) handleConnection(conn net.Conn) {
 
 		// responses goroutine
 		go func() {
-			for resp := range responses {
+			for resp := range responsesCh {
 				if err := writeFull(writer, resp.Serialize()); err != nil {
-					slog.Error("failed to send response", "error", err)
+					slog.Error("failed to send response", "cmd", resp.Cmd, "error", err)
+					resultsCh <- &writeResult{
+						Error:         err,
+						CorrelationID: resp.CorrelationID,
+					}
 					return
+				}
+				resultsCh <- &writeResult{
+					Error:         nil,
+					CorrelationID: resp.CorrelationID,
 				}
 			}
 		}()
@@ -70,10 +84,11 @@ func (b *Broker) handleConnection(conn net.Conn) {
 		// requests goroutine
 		go func(req *protocol.BaseRequest) {
 			responder := func(resp *protocol.BaseResponse) {
-				responses <- resp
+				responsesCh <- resp
 			}
 
-			respPayload, err := b.processRequest(req, responder)
+			slog.Debug("received request", "cmd", req.Cmd)
+			respPayload, err := b.processRequest(req, responder, resultsCh)
 			if err != nil {
 				slog.Error("error while processing request", "error", err)
 				return
@@ -82,7 +97,8 @@ func (b *Broker) handleConnection(conn net.Conn) {
 				return
 			}
 
-			responses <- &protocol.BaseResponse{
+			responsesCh <- &protocol.BaseResponse{
+				Cmd:           req.Cmd,
 				CorrelationID: req.CorrelationID,
 				Payload:       respPayload,
 			}
@@ -91,28 +107,22 @@ func (b *Broker) handleConnection(conn net.Conn) {
 }
 
 func writeFull(w *bufio.Writer, data []byte) error {
-	total := 0
-	for total < len(data) {
-		n, err := w.Write(data[total:])
-		if err != nil {
-			return err
-		}
-		total += n
+	if _, err := w.Write(data); err != nil {
+		return err
 	}
-
 	return w.Flush()
 }
 
-func (b *Broker) processRequest(req *protocol.BaseRequest, responder func(resp *protocol.BaseResponse)) ([]byte, error) {
+func (b *Broker) processRequest(req *protocol.BaseRequest, responder func(resp *protocol.BaseResponse), resultsCh chan *writeResult) ([]byte, error) {
 	switch req.ApiVersion {
 	case 0:
-		return b.processApiV0Request(req, responder)
+		return b.processApiV0Request(req, responder, resultsCh)
 	default:
 		return nil, errors.New("unsupported api version")
 	}
 }
 
-func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(resp *protocol.BaseResponse)) ([]byte, error) {
+func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(resp *protocol.BaseResponse), resultsCh chan *writeResult) ([]byte, error) {
 	switch r.Cmd {
 	case protocol.CmdCreateTopics:
 		req, err := protocol.Deserialize[protocol.ReqCreateTopics](r.Payload)
@@ -134,7 +144,7 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 			return nil, errors.New("failed to deserialize request")
 		}
 
-		resp := b.processConsumeReq(r.CorrelationID, req, responder)
+		resp := b.processConsumeReq(r.CorrelationID, req, responder, resultsCh)
 		if resp == nil {
 			return nil, nil
 		}
@@ -324,7 +334,7 @@ func (b *Broker) processProduceReq(req *protocol.ReqProduce) ([]byte, error) {
 	return respBuf, nil
 }
 
-func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responder func(resp *protocol.BaseResponse)) *protocol.RespConsume {
+func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responder func(resp *protocol.BaseResponse), resultsCh chan *writeResult) *protocol.RespConsume {
 	topic, err := b.GetTopic(req.Topic)
 	if err != nil {
 		return &protocol.RespConsume{
@@ -362,11 +372,19 @@ func (b *Broker) processConsumeReq(cID int32, req *protocol.ReqConsume, responde
 		}
 
 		resp := protocol.BaseResponse{
+			Cmd:           protocol.CmdConsume,
 			CorrelationID: cID,
 			Payload:       respBuf,
 		}
 
 		responder(&resp)
+
+		writeResult := <-resultsCh
+		if writeResult.Error != nil {
+			slog.Debug("write error, stopping consumer", "corrID", cID, "offet", message.offset, "err", err)
+			return writeResult.Error
+		}
+
 		return nil
 	}
 

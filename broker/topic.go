@@ -95,6 +95,11 @@ func newTopic(name string, topicOptions *options.TopicOptions, brokerOptions *op
 		return nil, err
 	}
 
+	err = topic.persistState()
+	if err != nil {
+		return nil, err
+	}
+
 	return topic, nil
 }
 
@@ -306,7 +311,7 @@ func (t *Topic) createConsumer(group, id string, opts *options.ConsumerOptions) 
 	}
 
 	if id == "" { // generate new id when group is not specified
-		id = group + uuid.NewString()
+		id = group + "-" + uuid.NewString()
 	}
 
 	isGroupNew := false

@@ -32,7 +32,7 @@ func (c *Connection) ListTopics(nameFilter string) (*protocol.RespListTopics, er
 	}
 
 	ch := make(chan *protocol.RespListTopics, 1)
-	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
+	err = c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) error {
 		resp, err := protocol.Deserialize[protocol.RespListTopics](r.Payload)
 		if err != nil {
 			return err

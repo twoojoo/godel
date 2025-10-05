@@ -8,18 +8,18 @@ import (
 )
 
 const (
-	CmdProduce         int16 = 0
-	CmdConsume         int16 = 1
-	CmdListTopics      int16 = 2
-	CmdCreateConsumer  int16 = 3
-	CmdDeleteTopic     int16 = 4
-	CmdNotifyRebalabce int16 = 5
-	CmdGetTopic        int16 = 6
+	CmdProduce         int16 = 1
+	CmdConsume         int16 = 2
+	CmdListTopics      int16 = 3
+	CmdCreateConsumer  int16 = 4
+	CmdDeleteTopic     int16 = 5
+	CmdNotifyRebalabce int16 = 6
+	CmdGetTopic        int16 = 7
 	CmdCommitOffset    int16 = 8
-	CmdHeartbeat       int16 = 12
-	CmdDeleteConsumer  int16 = 13
-	CmdListGroups      int16 = 16
-	CmdCreateTopics    int16 = 19
+	CmdHeartbeat       int16 = 9
+	CmdDeleteConsumer  int16 = 10
+	CmdListGroups      int16 = 11
+	CmdCreateTopics    int16 = 12
 )
 
 type BaseRequest struct {
@@ -71,6 +71,7 @@ func (r *BaseRequest) Serialize() []byte {
 }
 
 type BaseResponse struct {
+	Cmd           int16
 	CorrelationID int32
 	Payload       []byte
 }
@@ -90,20 +91,23 @@ func DeserializeResponse(r io.Reader) (*BaseResponse, error) {
 		return nil, err
 	}
 
-	corrID := int32(binary.BigEndian.Uint32(req))
-	payload := req[4:]
+	cmd := int16(binary.BigEndian.Uint16(req))
+	corrID := int32(binary.BigEndian.Uint32(req[2:]))
+	payload := req[6:]
 
 	return &BaseResponse{
+		Cmd:           cmd,
 		CorrelationID: corrID,
 		Payload:       payload,
 	}, nil
 }
 
 func (r *BaseResponse) Serialize() []byte {
-	totalLen := 4 + len(r.Payload)
+	totalLen := 2 + 4 + len(r.Payload)
 	buf := make([]byte, 0, 4+totalLen)
 
 	buf = binary.BigEndian.AppendUint32(buf, uint32(totalLen))
+	buf = binary.BigEndian.AppendUint16(buf, uint16(r.Cmd))
 	buf = binary.BigEndian.AppendUint32(buf, uint32(r.CorrelationID))
 	buf = append(buf, r.Payload...)
 

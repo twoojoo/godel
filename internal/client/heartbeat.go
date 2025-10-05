@@ -35,7 +35,7 @@ func (c *Connection) Heartbeat(topic, group string, consumerID string) (*protoco
 	}
 
 	ch := make(chan *protocol.RespHeartbeat, 1)
-	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
+	err = c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) error {
 		// if msg.CorrelationID != r.CorrelationID {
 		// 	return nil
 		// }

@@ -74,7 +74,9 @@ My main goal is to learn how to build a distributed log and Golang allows me to 
 - [ ] removal notif to removed consumer
 - [ ] decouple consumer group creation and consumer creation
 - [ ] show error in cli when topic doesn't exist
+- [ ] check message size for absolute maximum size (max uint32)
 
 ## Bugs
 
-- [ ] sometimes starts from offset 2, maybe an issue with produce concurrency 
+- [ ] cli consumer not consuming in order (probably client side)
+- [ ] short write response when consuming (server side)

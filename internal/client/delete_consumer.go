@@ -34,7 +34,7 @@ func (c *Connection) DeleteConsumer(topic, group, id string) (*protocol.RespDele
 	}
 
 	ch := make(chan *protocol.RespDeleteConsumer, 1)
-	err = c.ReadMessage(msg.CorrelationID, func(r *protocol.BaseResponse) error {
+	err = c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) error {
 		resp, err := protocol.Deserialize[protocol.RespDeleteConsumer](r.Payload)
 		if err != nil {
 			return err

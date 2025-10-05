@@ -20,35 +20,35 @@ func (c *Connection) ListConsumerGroups(topic string) (*protocol.RespListConsume
 	}
 
 	msg := &protocol.BaseRequest{
-		Cmd:           protocol.CmdListGroups,
+		Cmd:           protocol.CmdListConsumerGroups,
 		ApiVersion:    0,
 		CorrelationID: corrID,
 		Payload:       reqBuf,
 	}
+
+	respCh := make(chan *protocol.RespListConsumerGroups)
+	errCh := make(chan error)
+
+	close := c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) {
+		resp, err := protocol.Deserialize[protocol.RespListConsumerGroups](r.Payload)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		respCh <- resp
+	}, true)
+
+	defer close()
 
 	err = c.SendMessage(msg)
 	if err != nil {
 		return nil, err
 	}
 
-	ch := make(chan *protocol.RespListConsumerGroups, 1)
-	err = c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) error {
-		// if msg.CorrelationID != r.CorrelationID {
-		// 	return nil
-		// }
-
-		resp, err := protocol.Deserialize[protocol.RespListConsumerGroups](r.Payload)
-		if err != nil {
-			return err
-		}
-
-		ch <- resp
-		return ErrCloseConnection
-	})
-	if err != nil {
+	select {
+	case err := <-errCh:
 		return nil, err
+	case resp := <-respCh:
+		return resp, nil
 	}
-
-	resp := <-ch
-	return resp, nil
 }

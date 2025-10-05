@@ -4,22 +4,24 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 )
 
 const (
-	CmdProduce         int16 = 1
-	CmdConsume         int16 = 2
-	CmdListTopics      int16 = 3
-	CmdCreateConsumer  int16 = 4
-	CmdDeleteTopic     int16 = 5
-	CmdNotifyRebalabce int16 = 6
-	CmdGetTopic        int16 = 7
-	CmdCommitOffset    int16 = 8
-	CmdHeartbeat       int16 = 9
-	CmdDeleteConsumer  int16 = 10
-	CmdListGroups      int16 = 11
-	CmdCreateTopics    int16 = 12
+	CmdProduce            int16 = 1
+	CmdConsume            int16 = 2
+	CmdListTopics         int16 = 3
+	CmdCreateConsumer     int16 = 4
+	CmdDeleteTopic        int16 = 5
+	CmdNotifyRebalabce    int16 = 6
+	CmdGetTopic           int16 = 7
+	CmdCommitOffset       int16 = 8
+	CmdHeartbeat          int16 = 9
+	CmdDeleteConsumer     int16 = 10
+	CmdListConsumerGroups int16 = 11
+	CmdCreateTopics       int16 = 12
+	CmdGetConsumerGroup   int16 = 13
 )
 
 type BaseRequest struct {
@@ -44,10 +46,10 @@ func DeserializeRequest(r io.Reader) (*BaseRequest, error) {
 		return nil, err
 	}
 
-	cmd := int16(binary.BigEndian.Uint16(req))
-	apiV := int16(binary.BigEndian.Uint16(req[2:]))
-	corrID := int32(binary.BigEndian.Uint32(req[4:]))
-	payload := req[8:]
+	cmd := int16(binary.BigEndian.Uint16(req[4:]))
+	apiV := int16(binary.BigEndian.Uint16(req[6:]))
+	corrID := int32(binary.BigEndian.Uint32(req[8:]))
+	payload := req[12:]
 
 	return &BaseRequest{
 		Cmd:           cmd,
@@ -60,6 +62,8 @@ func DeserializeRequest(r io.Reader) (*BaseRequest, error) {
 func (r *BaseRequest) Serialize() []byte {
 	totalLen := 2 + 2 + 4 + len(r.Payload)
 	buf := make([]byte, 0, totalLen)
+
+	fmt.Println(totalLen, r.Cmd, r.ApiVersion, r.CorrelationID)
 
 	buf = binary.BigEndian.AppendUint32(buf, uint32(totalLen))
 	buf = binary.BigEndian.AppendUint16(buf, uint16(r.Cmd))
@@ -91,7 +95,7 @@ func DeserializeResponse(r io.Reader) (*BaseResponse, error) {
 		return nil, err
 	}
 
-	cmd := int16(binary.BigEndian.Uint16(req))
+	cmd := int16(binary.BigEndian.Uint16(req[:]))
 	corrID := int32(binary.BigEndian.Uint32(req[2:]))
 	payload := req[6:]
 

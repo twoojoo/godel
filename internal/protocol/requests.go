@@ -71,5 +71,10 @@ type ReqDeleteTopic struct {
 }
 
 type ReqGetTopic struct {
-	Topic string `json:"name"`
+	Topic string `json:"topic"`
+}
+
+type ReqGetConsumerGroup struct {
+	Topic string `json:topic"`
+	Name  string `json:"name"`
 }

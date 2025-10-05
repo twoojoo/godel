@@ -28,25 +28,29 @@ func (c *Connection) DeleteConsumer(topic, group, id string) (*protocol.RespDele
 		Payload:       reqBuf,
 	}
 
+	respCh := make(chan *protocol.RespDeleteConsumer)
+	errCh := make(chan error)
+
+	close := c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) {
+		resp, err := protocol.Deserialize[protocol.RespDeleteConsumer](r.Payload)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		respCh <- resp
+	}, true)
+
+	defer close()
+
 	err = c.SendMessage(msg)
 	if err != nil {
 		return nil, err
 	}
 
-	ch := make(chan *protocol.RespDeleteConsumer, 1)
-	err = c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) error {
-		resp, err := protocol.Deserialize[protocol.RespDeleteConsumer](r.Payload)
-		if err != nil {
-			return err
-		}
-
-		ch <- resp
-		return ErrCloseConnection
-	})
-	if err != nil {
+	select {
+	case err := <-errCh:
 		return nil, err
+	case resp := <-respCh:
+		return resp, nil
 	}
-
-	resp := <-ch
-	return resp, nil
 }

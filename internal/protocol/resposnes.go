@@ -120,3 +120,9 @@ type RespGetTopic struct {
 	ErrorCode    int    `json:"errorCode"`
 	ErrorMessage string `json:"errorMessage,omitempty"`
 }
+
+type RespGetConsumerGroup struct {
+	Group        ConsumerGroup `json:"consumerGroup"`
+	ErrorCode    int           `json:"errorCode"`
+	ErrorMessage string        `json:"errorMessage,omitempty"`
+}

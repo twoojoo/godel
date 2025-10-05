@@ -41,9 +41,9 @@ var cmdCommitoffset = &cli.Command{
 		offset := cmd.Uint64Arg("offset")
 
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
-			if err != client.ErrCloseConnection {
-				fmt.Println("error", err)
-			}
+			// if err != client.ErrCloseConnection {
+			fmt.Println("error", err)
+			// }
 		})
 		if err != nil {
 			return err

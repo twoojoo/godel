@@ -38,9 +38,9 @@ var cmdDeleteConsumer = &cli.Command{
 		}
 
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
-			if err != client.ErrCloseConnection {
-				fmt.Println("error", err)
-			}
+			// if err != client.ErrCloseConnection {
+			fmt.Println("error", err)
+			// }
 		})
 		if err != nil {
 			return err

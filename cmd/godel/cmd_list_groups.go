@@ -26,9 +26,9 @@ var cmdListConsumerGroups = &cli.Command{
 		}
 
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
-			if err != client.ErrCloseConnection {
-				fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-			}
+			// if err != client.ErrCloseConnection {
+			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+			// }
 		})
 		if err != nil {
 			return err

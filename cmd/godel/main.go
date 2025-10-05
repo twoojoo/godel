@@ -42,6 +42,7 @@ func main() {
 				Aliases: []string{"groups", "consumer-group", "consumer-groups"},
 				Commands: []*cli.Command{
 					cmdListConsumerGroups,
+					cmdGetConsumerGroup,
 				},
 			},
 		},

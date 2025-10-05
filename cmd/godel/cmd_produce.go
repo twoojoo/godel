@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"godel/internal/client"
 	"godel/internal/protocol"
-	"io"
 	"os"
 	"strings"
 
@@ -47,16 +46,16 @@ var cmdProduce = &cli.Command{
 		// closeCh := make(chan struct{})
 
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
-			if err == client.ErrCloseConnection || err == io.EOF {
-				fmt.Fprintf(os.Stderr, "\n")
-				fmt.Fprintf(os.Stderr, "producer forcefully disconnected\n")
+			// if err == client.ErrCloseConnection || err == io.EOF {
+			// 	fmt.Fprintf(os.Stderr, "\n")
+			// 	fmt.Fprintf(os.Stderr, "producer forcefully disconnected\n")
 
-				if err := c.Close(); err != nil {
-					fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-				}
+			// 	if err := c.Close(); err != nil {
+			// 		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+			// 	}
 
-				os.Exit(0)
-			}
+			// 	os.Exit(0)
+			// }
 
 			fmt.Println("error", err)
 		})
@@ -66,19 +65,14 @@ var cmdProduce = &cli.Command{
 
 		if cmd.Bool("showResponse") {
 			go func() {
-				err := conn.AppendListener(corrID, func(r *protocol.BaseResponse) error {
+				conn.AppendListener(corrID, func(r *protocol.BaseResponse) {
 					fmt.Println(string(r.Payload))
 
-					_, err := protocol.Deserialize[protocol.RespProduce](r.Payload)
-					if err != nil {
-						return err
-					}
-
-					return nil
-				})
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-				}
+					// _, err := protocol.Deserialize[protocol.RespProduce](r.Payload)
+					// if err != nil {
+					// 	return err
+					// }
+				}, false)
 			}()
 		}
 

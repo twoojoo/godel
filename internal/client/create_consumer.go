@@ -37,25 +37,31 @@ func (c *Connection) CreateConsumer(topic, group string, opts *options.ConsumerO
 		Payload:       reqBuf,
 	}
 
+	c.SendMessage(msg)
+
+	respCh := make(chan *protocol.RespCreateConsumer)
+	errCh := make(chan error)
+
+	close := c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) {
+		resp, err := protocol.Deserialize[protocol.RespCreateConsumer](r.Payload)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		respCh <- resp
+	}, true)
+
+	defer close()
+
 	err = c.SendMessage(msg)
 	if err != nil {
 		return nil, err
 	}
 
-	ch := make(chan *protocol.RespCreateConsumer, 1)
-	err = c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) error {
-		resp, err := protocol.Deserialize[protocol.RespCreateConsumer](r.Payload)
-		if err != nil {
-			return err
-		}
-
-		ch <- resp
-		return ErrCloseConnection
-	})
-	if err != nil {
+	select {
+	case err := <-errCh:
 		return nil, err
+	case resp := <-respCh:
+		return resp, nil
 	}
-
-	resp := <-ch
-	return resp, nil
 }

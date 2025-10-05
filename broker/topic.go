@@ -408,6 +408,19 @@ func (t *Topic) listConsumerGroups() map[string]*consumerGroup {
 	return t.consumerGroups
 }
 
+func (t *Topic) getConsumerGroup(name string) (*consumerGroup, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	for i := range t.consumerGroups {
+		if t.consumerGroups[i].name == name {
+			return t.consumerGroups[i], nil
+		}
+	}
+
+	return nil, errors.New(protocol.ErrConsumerGroupNotFound)
+}
+
 func (t *Topic) commitOffset(group string, partition uint32, offset uint64) error {
 	if group == "" {
 		return errors.New(protocol.ErrMissingGroupName)

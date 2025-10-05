@@ -172,7 +172,7 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		}
 
 		return buf, nil
-	case protocol.CmdListGroups:
+	case protocol.CmdListConsumerGroups:
 		req, err := protocol.Deserialize[protocol.ReqListConsumerGroups](r.Payload)
 		if err != nil {
 			return nil, errors.New("failed to deserialize request")
@@ -259,6 +259,22 @@ func (b *Broker) processApiV0Request(r *protocol.BaseRequest, responder func(res
 		}
 
 		resp := b.processDeleteTopicReq(req)
+		if resp == nil {
+			return nil, nil
+		}
+		buf, err := protocol.Serialize(resp)
+		if err != nil {
+			return nil, err
+		}
+
+		return buf, nil
+	case protocol.CmdGetConsumerGroup:
+		req, err := protocol.Deserialize[protocol.ReqGetConsumerGroup](r.Payload)
+		if err != nil {
+			return nil, errors.New("failed to deserialize request")
+		}
+
+		resp := b.processGetConsumerGroupReq(req)
 		if resp == nil {
 			return nil, nil
 		}
@@ -591,6 +607,53 @@ func (b *Broker) processDeleteTopicReq(req *protocol.ReqDeleteTopic) *protocol.R
 		resp.ErrorCode = 1
 		resp.ErrorMessage = err.Error()
 		return resp
+	}
+
+	return resp
+}
+
+func (b *Broker) processGetConsumerGroupReq(req *protocol.ReqGetConsumerGroup) *protocol.RespGetConsumerGroup {
+	resp := &protocol.RespGetConsumerGroup{}
+
+	topic, err := b.GetTopic(req.Topic)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
+	}
+
+	cg, err := topic.getConsumerGroup(req.Name)
+	if err != nil {
+		resp.ErrorCode = 1
+		resp.ErrorMessage = err.Error()
+		return resp
+	}
+
+	consumers := make([]protocol.Consumer, len(cg.consumers))
+	for i := range cg.consumers {
+		partitions := make([]uint32, len(cg.consumers[i].partitions))
+		for j := range cg.consumers[i].partitions {
+			partitions[j] = cg.consumers[i].partitions[j].num
+		}
+
+		consumers[i] = protocol.Consumer{
+			ID:         cg.consumers[i].id,
+			Partitions: partitions,
+		}
+	}
+
+	offsets := make([]protocol.ConsumerGroupOffset, 0, len(cg.offsets))
+	for partition, offset := range cg.offsets {
+		offsets = append(offsets, protocol.ConsumerGroupOffset{
+			Partition: partition,
+			Offset:    offset,
+		})
+	}
+
+	resp.Group = protocol.ConsumerGroup{
+		Name:      cg.name,
+		Consumers: consumers,
+		Offsets:   offsets,
 	}
 
 	return resp

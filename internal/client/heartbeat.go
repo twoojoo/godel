@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"godel/internal/protocol"
 )
 
@@ -29,29 +28,29 @@ func (c *Connection) Heartbeat(topic, group string, consumerID string) (*protoco
 		Payload:       reqBuf,
 	}
 
-	err = c.SendMessage(msg)
-	if err != nil {
-		fmt.Println(err)
-	}
+	respCh := make(chan *protocol.RespHeartbeat)
+	errCh := make(chan error)
 
-	ch := make(chan *protocol.RespHeartbeat, 1)
-	err = c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) error {
-		// if msg.CorrelationID != r.CorrelationID {
-		// 	return nil
-		// }
-
+	close := c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) {
 		resp, err := protocol.Deserialize[protocol.RespHeartbeat](r.Payload)
 		if err != nil {
-			return err
+			errCh <- err
+			return
 		}
+		respCh <- resp
+	}, true)
 
-		ch <- resp
-		return ErrCloseConnection
-	})
+	defer close()
+
+	err = c.SendMessage(msg)
 	if err != nil {
 		return nil, err
 	}
 
-	resp := <-ch
-	return resp, nil
+	select {
+	case err := <-errCh:
+		return nil, err
+	case resp := <-respCh:
+		return resp, nil
+	}
 }

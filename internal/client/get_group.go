@@ -4,14 +4,15 @@ import (
 	"godel/internal/protocol"
 )
 
-func (c *Connection) ListTopics(nameFilter string) (*protocol.RespListTopics, error) {
+func (c *Connection) GetConsumerGroup(topic, name string) (*protocol.RespGetConsumerGroup, error) {
 	corrID, err := GenerateCorrelationID()
 	if err != nil {
 		return nil, err
 	}
 
-	req := protocol.ReqListTopics{
-		NameFilter: nameFilter,
+	req := protocol.ReqGetConsumerGroup{
+		Topic: topic,
+		Name:  name,
 	}
 
 	reqBuf, err := protocol.Serialize(req)
@@ -20,22 +21,17 @@ func (c *Connection) ListTopics(nameFilter string) (*protocol.RespListTopics, er
 	}
 
 	msg := &protocol.BaseRequest{
-		Cmd:           protocol.CmdListTopics,
+		Cmd:           protocol.CmdGetConsumerGroup,
 		ApiVersion:    0,
 		CorrelationID: corrID,
 		Payload:       reqBuf,
 	}
 
-	err = c.SendMessage(msg)
-	if err != nil {
-		return nil, err
-	}
-
-	respCh := make(chan *protocol.RespListTopics)
+	respCh := make(chan *protocol.RespGetConsumerGroup)
 	errCh := make(chan error)
 
 	close := c.AppendListener(msg.CorrelationID, func(r *protocol.BaseResponse) {
-		resp, err := protocol.Deserialize[protocol.RespListTopics](r.Payload)
+		resp, err := protocol.Deserialize[protocol.RespGetConsumerGroup](r.Payload)
 		if err != nil {
 			errCh <- err
 			return

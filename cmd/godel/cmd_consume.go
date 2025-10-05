@@ -137,11 +137,11 @@ var cmdConsume = &cli.Command{
 		}
 
 		conn, err := client.ConnectToBroker(getAddr(cmd), func(c *client.Connection, err error) {
-			if err != client.ErrCloseConnection {
-				fmt.Fprintf(os.Stderr, "connection error: %s\n", err.Error())
-				close(c)
-				return
-			}
+			// if err != client.ErrCloseConnection {
+			fmt.Fprintf(os.Stderr, "connection error: %s\n", err.Error())
+			close(c)
+			return
+			// }
 		})
 		if err != nil {
 			return err
@@ -186,10 +186,11 @@ var cmdConsume = &cli.Command{
 
 		go func() {
 			count := 0
-			err := conn.AppendListener(corrID, func(r *protocol.BaseResponse) error {
+			conn.AppendListener(corrID, func(r *protocol.BaseResponse) {
 				resp, err := protocol.Deserialize[protocol.RespConsume](r.Payload)
 				if err != nil {
-					return err
+					fmt.Println("deser error", err)
+					return
 				}
 
 				for i := range resp.Messages {
@@ -215,7 +216,7 @@ var cmdConsume = &cli.Command{
 
 						bytes, err := json.Marshal(&m)
 						if err != nil {
-							return err
+							fmt.Println("marshal error", err)
 						}
 
 						fmt.Println(string(bytes))
@@ -230,9 +231,7 @@ var cmdConsume = &cli.Command{
 					fmt.Println("payload", string(resp.Messages[i].Payload))
 					fmt.Println()
 				}
-
-				return nil
-			})
+			}, false)
 			if err != nil {
 				fmt.Println("append listened err", err)
 			}
